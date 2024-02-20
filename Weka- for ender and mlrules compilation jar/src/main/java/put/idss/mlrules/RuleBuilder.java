@@ -28,8 +28,8 @@ import weka.core.Instances;
 
 public class RuleBuilder implements Serializable {
 
-	public String filename = "C:\\Users\\macku\\Desktop\\Praca Magisterska\\Praca-Magisterska\\pila.txt";
-	// public String filename = "C:\\\\Users\\\\Maciej\\\\Desktop\\\\Praca Magisterska\\\\pila.txt\";
+	// public String filename = "C:\\Users\\macku\\Desktop\\Praca Magisterska\\Praca-Magisterska\\pila.txt";
+	public String filename = "C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt";
 	
 	void writeLog(String s){
 		try{
