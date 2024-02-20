@@ -27,10 +27,13 @@ import weka.core.Instances;
 
 
 public class RuleBuilder implements Serializable {
+
+	public String filename = "C:\\Users\\macku\\Desktop\\Praca Magisterska\\Praca-Magisterska\\pila.txt";
+	// public String filename = "C:\\\\Users\\\\Maciej\\\\Desktop\\\\Praca Magisterska\\\\pila.txt\";
 	
 	void writeLog(String s){
 		try{
-			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			FileWriter writer = new FileWriter(filename, true);
 			// for (int[] row : invertedList) {
 			// 	for (int value : row) {
 			// 		writer.write(String.valueOf(value));
@@ -48,7 +51,7 @@ public class RuleBuilder implements Serializable {
 
 	void writeLogArray(double[] s){
 		try{
-			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			FileWriter writer = new FileWriter(filename, true);
 	
 			for (double value : s) {
 				writer.write(String.valueOf(value));
@@ -63,7 +66,7 @@ public class RuleBuilder implements Serializable {
 
 	void writeLogArray2D(double[][] s){
 		try{
-			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			FileWriter writer = new FileWriter(filename, true);
 			for (double[] row : s) {
 				for (double value : row) {
 					writer.write(String.valueOf(value));
@@ -424,26 +427,26 @@ public class RuleBuilder implements Serializable {
 							if (tempEmpiricalRisk < bestCut.empiricalRisk + RuleBuilder.EPSILON)
 								bestCut.saveCut(cutDirection, currentValue, value, tempEmpiricalRisk);
 						tempEmpiricalRisk = computeCurrentEmpiricalRisk(nextPosition, coveredInstances[nextPosition]);
-						writeLog("temp empirical risk" + String.valueOf(tempEmpiricalRisk));
+						// writeLog("temp empirical risk" + String.valueOf(tempEmpiricalRisk));
 						currentValue = instances.instance(nextPosition).value(attribute);
 					}
 				}
 				if(cutDirection == Rule.GREATER_EQUAL) i--; else i++;
 			}
-			writeLog("End of calculating");
+			// writeLog("End of calculating");
 		}
-		writeLog("decisiom:");
-		writeLogArray(bestCut.decision);
-		writeLog("position:");
-		writeLog(String.valueOf(bestCut.position));
-		writeLog("direction:");
-		writeLog(String.valueOf(bestCut.direction));
-		writeLog("value:");
-		writeLog(String.valueOf(bestCut.value));
-		writeLog("empirical_risk:");
-		writeLog(String.valueOf(bestCut.empiricalRisk));
-		writeLog("exists:");
-		writeLog(String.valueOf(bestCut.exists));
+		// writeLog("decisiom:");
+		// writeLogArray(bestCut.decision);
+		// writeLog("position:");
+		// writeLog(String.valueOf(bestCut.position));
+		// writeLog("direction:");
+		// writeLog(String.valueOf(bestCut.direction));
+		// writeLog("value:");
+		// writeLog(String.valueOf(bestCut.value));
+		// writeLog("empirical_risk:");
+		// writeLog(String.valueOf(bestCut.empiricalRisk));
+		// writeLog("exists:");
+		// writeLog(String.valueOf(bestCut.exists));
 
 		return bestCut;
 	}
