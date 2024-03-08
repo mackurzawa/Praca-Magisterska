@@ -5,6 +5,8 @@
 
 package pl.poznan.put.cs.idss.ml.ender;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.Serializable;
 
 import pl.poznan.put.cs.idss.ml.empiricalRiskMinimizers.EmpiricalRiskMinimizer;
@@ -20,6 +22,32 @@ import weka.core.Utils;
  */
 
 public abstract class RuleBuilder implements Serializable {
+	
+	void writeLog(String s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			writer.write("RuleBuilder:\n");
+			writer.write(s);
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){}
+	}
+	void writeLogArray2D(int[][] s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			for (int[] row : s) {
+				for (int value : row) {
+					writer.write(String.valueOf(value));
+					writer.write(" ");
+				}
+				writer.write("\n");
+			}
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){
+	
+		}
+	}
 	
 	// inverted lists
 	protected int[][] invertedList = null; 
@@ -105,6 +133,11 @@ public abstract class RuleBuilder implements Serializable {
 		this.instances = instances;
 
 		this.numberOfConditionAttributes = this.instances.numAttributes() - 3; //two auxiliary attributes
+		
+		// writeLog("auxiliaryDecisionAttribute");
+		// writeLog(String.valueOf(auxiliaryDecisionAttribute));
+		// writeLog("numberOfConditionAttributes");
+		// writeLog(String.valueOf(this.numberOfConditionAttributes));
 
 		this.instanceIndexAttribute = this.numberOfConditionAttributes + 2;
 		this.auxiliaryDecisionAttribute = this.numberOfConditionAttributes + 1;
@@ -117,6 +150,7 @@ public abstract class RuleBuilder implements Serializable {
 					invertedList[i][j] = (int) temporaryDoubleArray[j]; 
 				}
 		}
+		// writeLogArray2D(invertedList);
 		
 		this.instances.sort(this.instanceIndexAttribute);
 		

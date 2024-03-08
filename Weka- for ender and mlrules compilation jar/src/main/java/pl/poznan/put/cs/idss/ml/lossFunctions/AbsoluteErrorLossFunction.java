@@ -4,6 +4,8 @@
 
 package pl.poznan.put.cs.idss.ml.lossFunctions;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Arrays;
 
 import pl.poznan.put.cs.idss.ml.empiricalRiskMinimizers.EmpiricalRiskMinimizer;
@@ -58,6 +60,7 @@ public class AbsoluteErrorLossFunction extends LossFunction {
 					values[index++] = minimizer.getInstances().instance(i).value(minimizer.getAuxiliaryDecisionAttribute()) - valueOfF[i];
 		
 		Arrays.sort(values);
+		// writeLogArray(values);
 		if (numCovered % 2 == 1)
 			return values[numCovered / 2];
 		else
@@ -65,6 +68,11 @@ public class AbsoluteErrorLossFunction extends LossFunction {
 	}
 
 	public double computeDefaultDecision(short[] coveredInstances, EmpiricalRiskMinimizer minimizer) {
+		// double a = this.computeDecision(coveredInstances, minimizer);
+		// writeLog(String.valueOf(a));
+		// return a;
+
+
 		return this.computeDecision(coveredInstances, minimizer);
 	}
 

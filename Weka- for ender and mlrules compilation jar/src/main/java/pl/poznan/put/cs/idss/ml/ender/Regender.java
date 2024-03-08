@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.io.IOException;
 
 import pl.poznan.put.cs.idss.ml.*;
 import pl.poznan.put.cs.idss.ml.ender.*;
@@ -27,6 +28,16 @@ import weka.filters.unsupervised.attribute.ReplaceMissingValues;
  */
 
 public class Regender extends AbstractClassifier {
+
+	void writeLog(String s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			writer.write("Regender:\n");
+			writer.write(s);
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){}
+	}
 	
 	
 	//covered instances 
@@ -203,6 +214,8 @@ public class Regender extends AbstractClassifier {
 		Arrays.fill(coveredInstances, (short) 1);
 		this.defaultRule = this.ruleBuilder.createDefaultRule(this.valueOfF, this.coveredInstances);
 		this.updateFunction(this.defaultRule);
+
+		// writeLog(String.valueOf(this.defaultRule));
 		
 		int i = 0;
 		while (i < M) {

@@ -4,6 +4,9 @@
  */
 package pl.poznan.put.cs.idss.ml.empiricalRiskMinimizers;
 
+import java.io.FileWriter;
+import java.io.IOException;
+
 import weka.core.Instances;
 
 /**
@@ -12,11 +15,22 @@ import weka.core.Instances;
  */
 
 public class AbsoluteErrorRiskMinimizer extends EmpiricalRiskMinimizer {
+	
+	void writeLog(String s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			writer.write("AbsoluteErrorLossFunction:\n");
+			writer.write(s);
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){}
+	}
 
 	double[] gradient = null;
 	
 	public void initialize(Instances instances, int auxiliaryDecisionAttribute) {
 		super.initialize(instances,auxiliaryDecisionAttribute);
+		// writeLog("AbsoluteError/riskMinimizer");
 		this.gradient = new double[this.instances.numInstances()];
 	}
 		
