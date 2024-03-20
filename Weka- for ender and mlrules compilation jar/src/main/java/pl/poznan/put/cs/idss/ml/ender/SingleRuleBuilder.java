@@ -59,7 +59,7 @@ public class SingleRuleBuilder extends RuleBuilder {
 				if(cutDirection == Rule.GREATER_EQUAL) i--; else i++;
 			}
 
-			// writeLog(String.valueOf(currentPosition));
+			// writeLog("Current Position:" + String.valueOf(currentPosition));
 		
 			double currentValue = this.instances.instance(currentPosition).value(attribute);
 			int count = 0;
@@ -96,7 +96,13 @@ public class SingleRuleBuilder extends RuleBuilder {
 		
 
 	public short[] markCoveredInstances(int bestAttribute, short[] coveredInstances, Cut cut) { 
-		
+		// writeLog("mark covered:");
+		// writeLog(String.valueOf(cut.decision));
+		// writeLog(String.valueOf(cut.position));
+		// writeLog(String.valueOf(cut.direction));
+		// writeLog(String.valueOf(cut.value));
+		// writeLog(String.valueOf(cut.empiricalRisk));
+		// writeLog(String.valueOf(cut.exists));
 		for(int i = 0; i < this.instances.numInstances(); i++) {
 			if(this.instances.instance(i).isMissing(bestAttribute) == true) {
 				coveredInstances[i] = -1;
@@ -132,6 +138,7 @@ public class SingleRuleBuilder extends RuleBuilder {
 			for (int i = 0; i < this.numberOfConditionAttributes; i++) {
 				//start with empty rule; all instances are out of the rule; check only covered instances
 				cut = this.findBestCut(i, coveredInstances);
+				// writeLog("Atrubute" + String.valueOf(i));
 				// writeLog(String.valueOf(cut.decision));
 				// writeLog(String.valueOf(cut.position));
 				// writeLog(String.valueOf(cut.direction));
@@ -153,8 +160,11 @@ public class SingleRuleBuilder extends RuleBuilder {
 				rule.addCondition(bestAttribute, bestCut.value, bestCut.direction, this.instances.attribute(bestAttribute).name());
 				
 				// filter all the instances; delete uncovered instances
+				// writeLog("Covered instances before:");
+				// writeLogArray(coveredInstances);
 				coveredInstances = this.markCoveredInstances(bestAttribute, coveredInstances, bestCut);
-
+				// writeLog("Covered instances after:");
+				// writeLogArray(coveredInstances);
 				//countOfCuts++;
 				//if(countOfCuts > 10) creating = false;
 			}
@@ -165,8 +175,8 @@ public class SingleRuleBuilder extends RuleBuilder {
 		if (bestCut.exists == true) {// && bestCut.emptyRule == false) { 
 			//compute decision
 			double decision = this.nu * this.empiricalLossMinimizer.computeDecision(coveredInstances);
-			writeLog("decision after assigning");
-			writeLog(String.valueOf(decision));
+			// writeLog("decision after assigning");
+			// writeLog(String.valueOf(decision));
 			rule.setDecision(decision);
 			
 			int numCoveredInstances = 0;

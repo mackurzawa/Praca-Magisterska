@@ -80,12 +80,13 @@ public class SquaredLossFunction extends LossFunction {
 		*/
 		// writeLog("value of f");
 		// writeLogArray((short)valueOfF);
-		writeLog("covered Instances");
-		writeLogArray(coveredInstances);
-		writeLog("decision");
-		writeLog(String.valueOf(decision));
-		writeLog("norm");
-		writeLog(String.valueOf(norm));
+		
+		// writeLog("covered Instances");
+		// writeLogArray(coveredInstances);
+		// writeLog("decision");
+		// writeLog(String.valueOf(decision));
+		// writeLog("norm");
+		// writeLog(String.valueOf(norm));
 			
 		return decision / norm;
 	}

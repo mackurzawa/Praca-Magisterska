@@ -32,11 +32,24 @@ public class Regender extends AbstractClassifier {
 	void writeLog(String s){
 		try{
 			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
-			writer.write("Regender:\n");
 			writer.write(s);
-			writer.write("\n...\n");
+			writer.write("\n");
 			writer.close();
 		} catch(IOException e){}
+	}
+	void writeLogArray(double[] s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+	
+			for (double value : s) {
+				writer.write(String.valueOf(value));
+				writer.write(" ");
+			}
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){
+	
+		}
 	}
 	
 	
@@ -219,6 +232,7 @@ public class Regender extends AbstractClassifier {
 		
 		int i = 0;
 		while (i < M) {
+			// writeLog("NEXT RULE ITERATION");
 			//resampling
 			if(this.ifResample() == true)
 				this.coveredInstances = this.resample(this.instances.numInstances(),this.percentage, this.withReplacement);
@@ -229,12 +243,15 @@ public class Regender extends AbstractClassifier {
 			if (this.rules[i] != null) {
 				//update function F
 				this.updateFunction(this.rules[i].getDecision());
+				// writeLog("ValueOfF");
+				// writeLogArray(valueOfF);
 				i++;
 			}
 			else {
 				M = i;
 				break;
 			}
+			// writeLog("\n");
 		}
 	}
 

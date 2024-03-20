@@ -26,11 +26,24 @@ public abstract class RuleBuilder implements Serializable {
 	void writeLog(String s){
 		try{
 			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
-			writer.write("RuleBuilder:\n");
 			writer.write(s);
-			writer.write("\n...\n");
+			writer.write("\n");
 			writer.close();
 		} catch(IOException e){}
+	}
+	void writeLogArray(short[] s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+	
+			for (double value : s) {
+				writer.write(String.valueOf(value));
+				writer.write(" ");
+			}
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){
+	
+		}
 	}
 	void writeLogArray2D(int[][] s){
 		try{

@@ -19,6 +19,7 @@ import weka.core.Instances;
 public class AbsoluteErrorLossFunction extends LossFunction {
 
 	public AbsoluteErrorLossFunction () {
+		writeLog("Absolute Error!");
 	}
 
 	public double getLoss(double y, double f) {
@@ -50,6 +51,8 @@ public class AbsoluteErrorLossFunction extends LossFunction {
 		for (int i = 0; i < coveredInstances.length; i++)
 			if (coveredInstances[i] >= 0)
 				numCovered++;
+
+		writeLog(String.valueOf(numCovered));
 			
 		double[] values = new double[numCovered];
 		double[] valueOfF = minimizer.getValueOfF();
@@ -58,8 +61,15 @@ public class AbsoluteErrorLossFunction extends LossFunction {
 		for (int i = 0; i < coveredInstances.length; i++)
 			if (coveredInstances[i] >= 0)
 					values[index++] = minimizer.getInstances().instance(i).value(minimizer.getAuxiliaryDecisionAttribute()) - valueOfF[i];
+					writeLog(String.valueOf(values[index-1]));
 		
 		Arrays.sort(values);
+		short[] transformed = new short[values.length];
+
+		for (int j=0;j<values.length;j++) {
+			transformed[j] = (short)values[j];
+}
+		writeLogArray(transformed);
 		// writeLogArray(values);
 		if (numCovered % 2 == 1)
 			return values[numCovered / 2];
