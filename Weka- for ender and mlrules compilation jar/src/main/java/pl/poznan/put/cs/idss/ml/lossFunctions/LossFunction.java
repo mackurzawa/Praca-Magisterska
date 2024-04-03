@@ -5,6 +5,8 @@
 
 package pl.poznan.put.cs.idss.ml.lossFunctions;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.Serializable;
 
 import pl.poznan.put.cs.idss.ml.empiricalRiskMinimizers.EmpiricalRiskMinimizer;
@@ -15,6 +17,28 @@ import pl.poznan.put.cs.idss.ml.empiricalRiskMinimizers.EmpiricalRiskMinimizer;
  */
 
 public abstract class LossFunction implements Serializable {
+	public void writeLog(String s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			writer.write(s);
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){}
+	}
+	public void writeLogArray(short[] s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+	
+			for (short value : s) {
+				writer.write(String.valueOf(value));
+				writer.write(" ");
+			}
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){
+	
+		}
+	}
 
 	public abstract double getLoss(double y, double f);
 	

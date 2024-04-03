@@ -4,6 +4,8 @@
 
 package pl.poznan.put.cs.idss.ml.lossFunctions;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Arrays;
 
 import pl.poznan.put.cs.idss.ml.empiricalRiskMinimizers.EmpiricalRiskMinimizer;
@@ -17,6 +19,7 @@ import weka.core.Instances;
 public class AbsoluteErrorLossFunction extends LossFunction {
 
 	public AbsoluteErrorLossFunction () {
+		writeLog("Absolute Error!");
 	}
 
 	public double getLoss(double y, double f) {
@@ -48,6 +51,7 @@ public class AbsoluteErrorLossFunction extends LossFunction {
 		for (int i = 0; i < coveredInstances.length; i++)
 			if (coveredInstances[i] >= 0)
 				numCovered++;
+
 			
 		double[] values = new double[numCovered];
 		double[] valueOfF = minimizer.getValueOfF();
@@ -56,6 +60,7 @@ public class AbsoluteErrorLossFunction extends LossFunction {
 		for (int i = 0; i < coveredInstances.length; i++)
 			if (coveredInstances[i] >= 0)
 					values[index++] = minimizer.getInstances().instance(i).value(minimizer.getAuxiliaryDecisionAttribute()) - valueOfF[i];
+
 		
 		Arrays.sort(values);
 		if (numCovered % 2 == 1)
@@ -65,6 +70,11 @@ public class AbsoluteErrorLossFunction extends LossFunction {
 	}
 
 	public double computeDefaultDecision(short[] coveredInstances, EmpiricalRiskMinimizer minimizer) {
+		// double a = this.computeDecision(coveredInstances, minimizer);
+		// writeLog(String.valueOf(a));
+		// return a;
+
+
 		return this.computeDecision(coveredInstances, minimizer);
 	}
 

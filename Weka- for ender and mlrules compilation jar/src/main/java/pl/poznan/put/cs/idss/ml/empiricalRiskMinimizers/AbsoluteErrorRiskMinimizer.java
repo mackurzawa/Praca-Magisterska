@@ -4,6 +4,9 @@
  */
 package pl.poznan.put.cs.idss.ml.empiricalRiskMinimizers;
 
+import java.io.FileWriter;
+import java.io.IOException;
+
 import weka.core.Instances;
 
 /**
@@ -12,11 +15,22 @@ import weka.core.Instances;
  */
 
 public class AbsoluteErrorRiskMinimizer extends EmpiricalRiskMinimizer {
+	
+	void writeLog(String s){
+		try{
+			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
+			writer.write("AbsoluteErrorRiskMinimizer:\n");
+			writer.write(s);
+			writer.write("\n...\n");
+			writer.close();
+		} catch(IOException e){}
+	}
 
 	double[] gradient = null;
 	
 	public void initialize(Instances instances, int auxiliaryDecisionAttribute) {
 		super.initialize(instances,auxiliaryDecisionAttribute);
+		// writeLog("AbsoluteError/riskMinimizer");
 		this.gradient = new double[this.instances.numInstances()];
 	}
 		
@@ -41,6 +55,7 @@ public class AbsoluteErrorRiskMinimizer extends EmpiricalRiskMinimizer {
 	public double computeCurrentEmpiricalRisk (int position, int weight) {
 		this.sumOfWeights += weight*this.gradient[position];
 		if(this.gradient[position] == 0.0) this.sumOfZeroResiduals += 1.0;
+		// writeLog(String.valueOf(- Math.abs(this.sumOfWeights) + this.sumOfZeroResiduals));
 				
 		return - Math.abs(this.sumOfWeights) + this.sumOfZeroResiduals;
 	}
