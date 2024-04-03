@@ -9,7 +9,8 @@ from Cut import Cut
 
 
 class EnderRegressor(BaseEstimator, RegressorMixin):
-    def __init__(self, n_rules=100, loss='squared_error_loss_function', empirical_risk_minimizer='gradient_empirical_risk_minimizer'):
+    def __init__(self, n_rules=100, loss='squared_error_loss_function',
+                 empirical_risk_minimizer='gradient_empirical_risk_minimizer'):
         self.n_rules = n_rules
         if loss == "squared_error_loss_function":
             self.loss_f = SquaredErrorFunction()
@@ -34,7 +35,6 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
         self.y = y
 
         self.value_of_f = [0 for _ in range(len(X))]
-
         self.rules = self.create_rules(X, y)
 
         self.is_fitted_ = True
@@ -70,7 +70,7 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
 
         creating = True
         EPSILON = 1e-8
-        while(creating):
+        while creating:
             best_attribute = -1
             cut = Cut()
             for attribute in range(len(self.X[0])):
@@ -81,7 +81,8 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
             if best_attribute == -1 or best_cut.exists == False:
                 creating = False
             else:
-                rule.add_condition(best_attribute, best_cut.value, best_cut.direction, self.attribute_names[best_attribute])
+                rule.add_condition(best_attribute, best_cut.value, best_cut.direction,
+                                   self.attribute_names[best_attribute])
                 self.mark_covered_instances(best_attribute, best_cut)
 
         if best_cut.exists:
@@ -99,22 +100,19 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
             #         if self.
 
             for i_condition in range(len(rule.conditions)):
-              if rule.conditions[i_condition][1] == -99999999999999999:
-                print(f'\t{rule.attribute_names[i_condition]} <= {rule.conditions[i_condition][2]}')
-              elif rule.conditions[i_condition][2] == 99999999999999999:
-                print(f'\t{rule.attribute_names[i_condition]} >= {rule.conditions[i_condition][1]}')
-              else:
-                print(f'\t{rule.attribute_names[i_condition]} in [{rule.conditions[i_condition][1]}, {rule.conditions[i_condition][2]}]')
-
+                if rule.conditions[i_condition][1] == -99999999999999999:
+                    print(f'\t{rule.attribute_names[i_condition]} <= {rule.conditions[i_condition][2]}')
+                elif rule.conditions[i_condition][2] == 99999999999999999:
+                    print(f'\t{rule.attribute_names[i_condition]} >= {rule.conditions[i_condition][1]}')
+                else:
+                    print(
+                        f'\t{rule.attribute_names[i_condition]} in [{rule.conditions[i_condition][1]}, {rule.conditions[i_condition][2]}]')
 
             print(f'=> Decision {rule.decision}')
             print()
             return rule
         else:
             return None
-
-
-
 
     def find_best_cut(self, attribute):
         best_cut = Cut()
@@ -132,7 +130,8 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
             i = len(self.X) - 1 if cut_direction == GREATER_EQUAL else 0
             # print(self.inverted_list)
 
-            while (cut_direction == GREATER_EQUAL and i >= 0) or (cut_direction != GREATER_EQUAL and attribute < len(self.X)):
+            while (cut_direction == GREATER_EQUAL and i >= 0) or (
+                    cut_direction != GREATER_EQUAL and attribute < len(self.X)):
                 current_position = self.inverted_list[attribute, i]
                 if self.covered_instances[current_position] > 0:  # TODO is missing attribute
                     break
@@ -147,14 +146,15 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
                         count += 1
                         value = self.X[next_position][attribute]
                         weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
-                        if current_value != value and count >= 10: # TODO it was count >= 10
+                        if current_value != value and count >= 10:  # TODO it was count >= 10
                             if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
                                 best_cut.direction = cut_direction
-                                best_cut.value = (current_value + value)/2
+                                best_cut.value = (current_value + value) / 2
                                 best_cut.empirical_risk = temp_empirical_risk
                                 best_cut.exists = True
 
-                        temp_empirical_risk = self.empirical_risk_minimizer.compute_current_empirical_risk(next_position, self.covered_instances[next_position]*weight)
+                        temp_empirical_risk = self.empirical_risk_minimizer.compute_current_empirical_risk(
+                            next_position, self.covered_instances[next_position] * weight)
 
                         current_value = self.X[next_position][attribute]
                 i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
@@ -171,7 +171,7 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
 
     def update_value_of_f(self, decision):
         for i in range(len(self.covered_instances)):
-            if self.covered_instances[i] >= 0: # TODO Changed from == 1 to >= 0
+            if self.covered_instances[i] >= 0:  # TODO Changed from == 1 to >= 0
                 self.value_of_f[i] += decision
 
     def create_inverted_list(self, X):
