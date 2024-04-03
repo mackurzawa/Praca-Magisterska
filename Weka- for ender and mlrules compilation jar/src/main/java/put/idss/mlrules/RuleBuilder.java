@@ -309,9 +309,10 @@ public class RuleBuilder implements Serializable {
 		if (preChosenK) {
 			hessian = R;
 			gradient = 0;
+			writeLog("halko prechosenK wybrane");
 
-			// writeLog("probability");
-			// writeLogArray2D(probability);
+			writeLog("probability");
+			writeLogArray2D(probability);
 
 			double[] transformed = new double[N];
 			for (int j=0;j<N;j++) {
@@ -320,32 +321,38 @@ public class RuleBuilder implements Serializable {
 			// writeLog("covered Instances:");
 			// writeLogArray(transformed);
 		
-			for (int i = 0; i < coveredInstances.length; i++)
+			for (int i = 0; i < coveredInstances.length; i++){
 				if (coveredInstances[i] >= 0) {
 					if ((int)this.instances.instance(i).classValue() == maxK)
 						gradient += instances.instance(i).weight();
 					gradient -= instances.instance(i).weight() * probability[i][maxK];
 					hessian += instances.instance(i).weight() * (Rp + probability[i][maxK] * (1 - probability[i][maxK]));
+					if (instances.instance(i).weight() != 1){
+						writeLog("weights");
+						writeLog(String.valueOf(instances.instance(i).weight()));	
+					}
 				}
+			}
 
-			// writeLog(String.valueOf(hessian));
-			// writeLog(String.valueOf(gradient));
+			writeLog(String.valueOf(hessian));
+			writeLog(String.valueOf(gradient));
 		
 			if (gradient <= 0)
 				return null;
 
-			// writeLog("Max_K:");
-			// writeLog(String.valueOf(maxK));
+			writeLog("Max_K:");
+			writeLog(String.valueOf(maxK));
 			
 			double alphaNR = gradient / hessian;
-			// writeLog("alphanr:");
-			// writeLog(String.valueOf(alphaNR));
+			writeLog("alphanr:");
+			writeLog(String.valueOf(alphaNR));
 			double[] decision = new double[K];
 			Arrays.fill(decision, - alphaNR / K);
 			decision[maxK] = alphaNR * (K - 1) / K;
 			return decision;
 		}
 		else {
+			writeLog("halko prechosenK NIE wybrane");
 				Arrays.fill(hessians, R);
 			Arrays.fill(gradients, 0);
 			int chosenK = 0;

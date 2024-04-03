@@ -1,4 +1,4 @@
-from EnderClassifier import EnderClassifier
+from EnderBinaryClassifier import EnderClassifier
 from EnderRegressor import EnderRegressor
 import pandas as pd
 import numpy as np
