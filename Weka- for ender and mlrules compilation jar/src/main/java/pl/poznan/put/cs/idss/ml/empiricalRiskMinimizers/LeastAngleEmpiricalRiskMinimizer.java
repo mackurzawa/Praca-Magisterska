@@ -18,7 +18,7 @@ public class LeastAngleEmpiricalRiskMinimizer extends EmpiricalRiskMinimizer {
 	void writeLog(String s){
 		try{
 			FileWriter writer = new FileWriter("C:\\Users\\Maciej\\Desktop\\Praca Magisterska\\pila.txt", true);
-			writer.write("AbsoluteErrorLossFunction:\n");
+			writer.write("LeastAngleEmpiricalRiskMinimizer:\n");
 			writer.write(s);
 			writer.write("\n...\n");
 			writer.close();
