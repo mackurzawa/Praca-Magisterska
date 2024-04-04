@@ -14,8 +14,8 @@ PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
 nu = 0.5
 use_gradient = True
-R = 10
-Rp = 1e-2
+R = 5
+Rp = 1e-5
 
 
 class EnderBinaryClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
