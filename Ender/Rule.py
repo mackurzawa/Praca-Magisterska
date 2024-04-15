@@ -28,5 +28,5 @@ class Rule():
     def classify_instance(self, x):
         for condition in self.conditions:
             if not condition[1] <= x[condition[0]] <= condition[2]:
-                return 0
+                return 0 if type(self.decision) is int else [0 for _ in range(len(self.decision))]
         return self.decision

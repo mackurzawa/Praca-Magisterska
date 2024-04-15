@@ -1,14 +1,15 @@
-from EnderBinaryClassifier import EnderBinaryClassifier
+from EnderClassifier import EnderClassifier
 import pandas as pd
 import numpy as np
 import os
+from sklearn.metrics import accuracy_score
 
 
 DATA_PATH = os.path.join('..', 'data')
 TEST_DATA_PATH = os.path.join(DATA_PATH, 'test_data')
 
 # squared error loss działa perfett, absolute error po kilku lekko odbiega
-n_rules = 3
+n_rules = 10
 loss = 'squared_error_loss_function'  # -> in Weka called lossFunction = Squared Error Loss
 # loss = 'absolute_error_loss_function' # almost working, after few it changes a bit, in weka called Absolute Error Loss
 empirical_risk_minimizer = 'gradient_empirical_risk_minimizer'  # -. in Weka called minimizationTechnique = Simultaneus minimization
@@ -29,9 +30,15 @@ def start_small_classification():
     decision_attribute = "DecyzyjnyAtrybut"
     X, y = data.drop([decision_attribute], axis=1), np.array(data[decision_attribute].astype(int))
 
-    ender = EnderBinaryClassifier(n_rules=n_rules, loss=loss, empirical_risk_minimizer=empirical_risk_minimizer)
+    ender = EnderClassifier(n_rules=n_rules, loss=loss, empirical_risk_minimizer=empirical_risk_minimizer)
     ender.fit(X, y)
     # print(ender.predict([[1, 3, 2]]))
+
+
+def calculate_accuracy_from_probabilities(y, y_preds):
+    y_pred_labels = [np.argmax(y_pred) for y_pred in y_preds]
+    print("Accuracy:")
+    print(accuracy_score(y, y_pred_labels))
 
 
 def start_wine_classification():
@@ -41,10 +48,13 @@ def start_wine_classification():
     X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
     X = pd.get_dummies(X)
     y = np.array(map_classes(y))
-    print(y)
+    # print(y)
 
-    ender = EnderBinaryClassifier(n_rules=n_rules, loss=loss, empirical_risk_minimizer=empirical_risk_minimizer)
+    ender = EnderClassifier(n_rules=n_rules, loss=loss, empirical_risk_minimizer=empirical_risk_minimizer)
     ender.fit(X, y)
+
+    y_preds = ender.predict(X)
+    calculate_accuracy_from_probabilities(y, y_preds)
 
 
 # start_small_classification()
