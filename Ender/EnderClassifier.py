@@ -14,29 +14,18 @@ PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
 nu = 0.5
 # nu = 0.8
-use_gradient = True
-# use_gradient = False
 R = 5
 Rp = 1e-5
 
 
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
-    def __init__(self, n_rules=100, loss='squared_error_loss_function',
-                 empirical_risk_minimizer='gradient_empirical_risk_minimizer'):
+    def __init__(self, n_rules=100, use_gradient=True,
+                 ):
         self.n_rules = n_rules
-        if loss == "squared_error_loss_function":
-            self.loss_f = SquaredErrorFunction()
-        elif loss == 'absolute_error_loss_function':
-            self.loss_f = AbsoluteErrorFunction()
 
-        if empirical_risk_minimizer == 'absolute_error_risk_minimizer':
-            self.empirical_risk_minimizer = AbsoluteErrorRiskMinimizer(self.loss_f)
-        elif empirical_risk_minimizer == "gradient_empirical_risk_minimizer":
-            self.empirical_risk_minimizer = GradientEmpiricalRiskMinimizer(self.loss_f)
-
+        self.use_gradient = use_gradient
         self.nu = nu
 
-        
     def fit(self, X, y):
         self.attribute_names = X.columns
         X, y = check_X_y(X, y)
@@ -54,7 +43,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         return self
 
     def create_rules(self, X, y):
-        # self.empirical_risk_minimizer.initialize_start(X, y)
         self.create_inverted_list(X)
         self.covered_instances = [1 for _ in range(len(X))]
 
@@ -72,7 +60,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 self.update_value_of_f(rule.decision)
                 rules.append(rule)
             # return rules
-
 
         return rules
 
@@ -99,15 +86,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 rule.add_condition(best_attribute, best_cut.value, best_cut.direction,
                                    self.attribute_names[best_attribute])
                 self.mark_covered_instances(best_attribute, best_cut)
-        # Check loss
-        if best_cut.exists:
-            # multiplicating every by self.nu
 
-            # decision = self.loss_f.compute_decision(self.covered_instances, self.value_of_f, self.y)
+        if best_cut.exists:
+
             decision = self.compute_decision()
-            # print("Dec b4 nu:", decision, type(decision))
             decision = [dec * self.nu for dec in decision]
-            # print("Dec after nu:", decision)
 
             rule.decision = decision
 
@@ -150,7 +133,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     break
                 i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
 
-
             current_value = self.X[current_position][attribute]
             # count = 0
             while (cut_direction == GREATER_EQUAL and i >= 0) or (cut_direction != GREATER_EQUAL and i < len(self.X)):
@@ -183,7 +165,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 if (value < cut.value and cut.direction == 1) or (value > cut.value and cut.direction == -1):
                     self.covered_instances[i] = -1
 
-
     def initialize_for_cut(self):
         self.gradient = 0
         self.hessian = R
@@ -195,14 +176,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             if self.y[next_position] == self.max_k:
                 self.gradient += INSTANCE_WEIGHT * weight
             self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
-            if use_gradient:
+            if self.use_gradient:
                 return -self.gradient
             else:
                 self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (1 - self.probability[next_position][self.max_k]))
                 return - self.gradient * abs(self.gradient) / self.hessian
         else:
             raise
-
 
     def create_default_rule(self):
         self.initialize_for_rule()
@@ -216,36 +196,23 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             hessian = R
             gradient = 0
 
-            # print('probability:')
-            # import numpy as np
-            # print(np.array(self.probability))
-
             for i in range(len(self.covered_instances)):
                 if self.covered_instances[i] >= 0:
                     if self.y[i] == self.max_k:
                         gradient += INSTANCE_WEIGHT
                     gradient -= INSTANCE_WEIGHT * self.probability[i][self.max_k]
                     hessian += INSTANCE_WEIGHT * (Rp + self.probability[i][self.max_k] * (1 - self.probability[i][self.max_k]))
-            # print("hessian:")
-            # print(hessian)
-            # print("gradient:")
-            # print(gradient)
+
             if gradient < 0:
                 return None
 
-            # print("max_k:")
-            # print(self.max_k)
-
             alpha_nr = gradient / hessian
 
-            # print("alpha_nr:")
-            # print(alpha_nr)
             decision = [- alpha_nr / self.num_classes for _ in range(self.num_classes)]
             decision[self.max_k] = alpha_nr * (self.num_classes - 1) / self.num_classes
-            # print("decision z compute decision na koncu:")
-            # print(decision)
             return decision
-        else: raise
+        else:
+            raise
 
     def initialize_for_rule(self):
         if PRE_CHOSEN_K:
@@ -270,7 +237,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         if PRE_CHOSEN_K:
             self.max_k = 0
-            if use_gradient:
+            if self.use_gradient:
                 for k in range(1, self.num_classes):
                     if self.gradients[k] > self.gradients[self.max_k]:
                         self.max_k = k
@@ -278,7 +245,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 for k in range(1, self.num_classes):
                     if self.gradients[k] / self.hessians[k] ** .5 > self.gradients[self.max_k] / self.hessians[self.max_k] ** .5:
                         self.max_k = k
-
 
     def create_inverted_list(self, X):
         import numpy as np
