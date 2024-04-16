@@ -1,13 +1,12 @@
 import math
 
+import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics import accuracy_score
-from RiskMinimizer import AbsoluteErrorRiskMinimizer, GradientEmpiricalRiskMinimizer
-from LossFunction import AbsoluteErrorFunction, SquaredErrorFunction
 from Rule import Rule
 from Cut import Cut
+from CalculateMetrics import calculate_all_metrics
 
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
@@ -19,12 +18,16 @@ Rp = 1e-5
 
 
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
-    def __init__(self, n_rules=100, use_gradient=True,
+    def __init__(self, n_rules=100, use_gradient=True, save_history=True
                  ):
         self.n_rules = n_rules
+        self.rules = []
 
         self.use_gradient = use_gradient
         self.nu = nu
+        self.save_history = save_history
+        self.history = {'accuracy': [],
+                        'mean_absolute_error': []}
 
     def fit(self, X, y):
         self.attribute_names = X.columns
@@ -36,19 +39,21 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.value_of_f = [[0 for _ in range(self.num_classes)] for _ in range(len(self.X))]
         self.probability = [[0 for _ in range(self.num_classes)] for _ in range(len(self.X))]
 
-        self.rules = self.create_rules(X, y)
+        self.create_rules(X, y)
 
         self.is_fitted_ = True
 
-        return self
+        return self.history if self.save_history else None
 
     def create_rules(self, X, y):
         self.create_inverted_list(X)
         self.covered_instances = [1 for _ in range(len(X))]
 
-        rules = [self.create_default_rule()]
-        self.update_value_of_f(rules[0])
-        print("Default rule:", rules[0])
+        self.rules = [self.create_default_rule()]
+        if self.save_history:
+            self.save_epoch()
+        self.update_value_of_f(self.rules[0])
+        print("Default rule:", self.rules[0])
         for i_rule in range(self.n_rules):
             print('####################################################################################')
             print(f"Rule: {i_rule + 1}")
@@ -58,10 +63,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
             if rule:
                 self.update_value_of_f(rule.decision)
-                rules.append(rule)
+                self.rules.append(rule)
+                if self.save_history:
+                    self.save_epoch()
             # return rules
 
-        return rules
+        # return rules
 
     def create_rule(self):
         self.initialize_for_rule()
@@ -259,7 +266,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     self.value_of_f[i][k] += decision[k]
 
     def predict(self, X):
-        check_is_fitted(self, 'is_fitted_')
+        # check_is_fitted(self, 'is_fitted_')
 
         X = check_array(X)
 
@@ -284,3 +291,10 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         accuracy = accuracy_score(y, predictions)
 
         return accuracy
+
+    def save_epoch(self):
+        y_preds = self.predict(self.X)
+        metrics = calculate_all_metrics(self.y, y_preds)
+
+        self.history['accuracy'].append(metrics['accuracy'])
+        self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])

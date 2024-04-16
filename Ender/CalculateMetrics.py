@@ -9,10 +9,6 @@ def calculate_all_metrics(y, y_preds):
 
     accuracy = accuracy_score(y, y_pred_labels)
     mean_absolute_err = mean_absolute_error(perfect_probabilites, y_pred_for_true_labels)
+    mean_absolute_err = None
 
-    print(y_pred_for_true_labels)
-    print(y)
-
-    print("Accuracy:", accuracy)
-    print("Mean Absolute Error:", mean_absolute_err)
-    return None
+    return {'accuracy': accuracy, 'mean_absolute_error': mean_absolute_err}
