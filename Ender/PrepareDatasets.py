@@ -10,6 +10,15 @@ def map_classes(series, class_mapping):
     mapped_series = series.map(class_mapping)
     return mapped_series
 
+def prepare_smallest_classification_dataset():
+    data = pd.read_csv(os.path.join(DATA_PATH, "test_data\\3 ex 2 cl.csv"))
+
+    decision_attribute = "c"
+    X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
+    X = pd.get_dummies(X)
+    class_mapping = {'klasa1': 0, 'klasa2': 1}
+    y = np.array(map_classes(y, class_mapping))
+    return X, y
 
 def prepare_wine_classification_dataset():
     data = pd.read_csv(os.path.join(DATA_PATH, "Classification Wine - 3 cl. 13 cols. 178 ex.csv"))
