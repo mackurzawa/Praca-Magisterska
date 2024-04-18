@@ -32,7 +32,8 @@ def prepare_wine_classification_dataset():
 
 
 def prepare_apple_small_classification_dataset():
-    data = pd.read_csv(os.path.join(DATA_PATH, "Classification Apple - 2 cl. 8 cols. 100 ex.csv"))
+    # data = pd.read_csv(os.path.join(DATA_PATH, "Classification Apple - 2 cl. 8 cols. 100 ex.csv"))
+    data = pd.read_csv(os.path.join(DATA_PATH, "Classification Apple - 2 cl. 8 cols. 36 ex.csv"))
 
     decision_attribute = "Quality"
     X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]

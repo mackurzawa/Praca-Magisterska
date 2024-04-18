@@ -18,13 +18,14 @@ Rp = 1e-5
 
 
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
-    def __init__(self, n_rules=100, use_gradient=True, save_history=True
-                 ):
+    def __init__(self, n_rules=100, use_gradient=True, save_history=True, optimized_searching_for_cut=True):
         self.n_rules = n_rules
         self.rules = []
 
         self.use_gradient = use_gradient
         self.nu = nu
+
+        self.optimized_searching_for_cut = optimized_searching_for_cut
         self.save_history = save_history
         self.history = {'accuracy': [],
                         'mean_absolute_error': []}
@@ -39,13 +40,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.value_of_f = [[0 for _ in range(self.num_classes)] for _ in range(len(self.X))]
         self.probability = [[0 for _ in range(self.num_classes)] for _ in range(len(self.X))]
 
-        self.create_rules(X, y)
+        self.create_rules(X)
 
         self.is_fitted_ = True
 
         return self.history if self.save_history else None
 
-    def create_rules(self, X, y):
+    def create_rules(self, X):
         self.create_inverted_list(X)
         self.covered_instances = [1 for _ in range(len(X))]
 
@@ -66,7 +67,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 self.rules.append(rule)
                 if self.save_history:
                     self.save_epoch()
-            # return rules
 
         # return rules
 
@@ -118,6 +118,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             return None
 
     def find_best_cut(self, attribute):
+        # print()
+        # print('attribute:', attribute)
         best_cut = Cut()
         best_cut.position = -1
         best_cut.exists = False
@@ -129,39 +131,102 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         LESS_EQUAL = -1
         EPSILON = 1e-8
         for cut_direction in [-1, 1]:
+            # print()
+            # print("zmiana kierunku!")
+            # print()
             self.initialize_for_cut()
-            i = len(self.X) - 1 if cut_direction == GREATER_EQUAL else 0
-            # print(self.inverted_list)
 
-            while (cut_direction == GREATER_EQUAL and i >= 0) or (
-                    cut_direction != GREATER_EQUAL and attribute < len(self.X)):
-                current_position = self.inverted_list[attribute, i]
-                if self.covered_instances[current_position] > 0:  # TODO is missing attribute
-                    break
-                i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
+            # while (cut_direction == GREATER_EQUAL and i >= 0) or (
+            #         cut_direction != GREATER_EQUAL and attribute < len(self.X)):
+            #     current_position = self.inverted_list[attribute, i]
+            #     if self.covered_instances[current_position] > 0:  # TODO is missing attribute
+            #         break
+            #     i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
 
-            current_value = self.X[current_position][attribute]
-            # count = 0
-            while (cut_direction == GREATER_EQUAL and i >= 0) or (cut_direction != GREATER_EQUAL and i < len(self.X)):
-                next_position = self.inverted_list[attribute, i]
-                if self.covered_instances[next_position] == 1:
-                    if True:  # TODO ismissing(attribute)
-                        # count += 1
-                        value = self.X[next_position][attribute]
-                        weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
-                        # if current_value != value and count >= 10:  # TODO it is in regression
-                        if current_value != value:
+            # if not self.optimized_searching_for_cut:
+            if self.optimized_searching_for_cut:
+                i = len(self.indices_for_better_cuts[attribute]) - 1 if cut_direction == GREATER_EQUAL else 0
+                self.last_index_computation_of_empirical_risk = i
+                previous_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]]
+                previous_value = self.X[previous_position][attribute]
+                while (cut_direction == GREATER_EQUAL and i >= 0) or (cut_direction != GREATER_EQUAL and i < len(self.indices_for_better_cuts[attribute])):
+                    curr_position = self.inverted_list[attribute][i]
+                    # next_position = self.indices_for_better_cuts[attribute][i]
+                    # print(self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]], self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]+1])
+                    curr_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]]
+                    if cut_direction == GREATER_EQUAL:
+                        next_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]+1]
+                    else:
+                        next_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]-1]
+                    if self.covered_instances[curr_position] == 1:
+                        if True:  # TODO ismissing(attribute)
+                            # count += 1
+                            value = self.X[curr_position][attribute]
+                            value_2 = self.X[next_position][attribute]
+                            weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
+
                             if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
                                 best_cut.direction = cut_direction
-                                best_cut.value = (current_value + value) / 2
+                                best_cut.value = (value + value_2) / 2
+                                # best_cut.value = (current_value + value) / 2
                                 best_cut.empirical_risk = temp_empirical_risk
                                 best_cut.exists = True
+                            #
+                            temp_empirical_risk = self.compute_current_empirical_risk_optimized(
+                                self.indices_for_better_cuts[attribute][i], attribute, self.covered_instances[curr_position] * weight)
 
-                        temp_empirical_risk = self.compute_current_empirical_risk(
-                            next_position, self.covered_instances[next_position] * weight)
+                            print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
 
-                        current_value = self.X[next_position][attribute]
-                i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
+                            current_value = self.X[curr_position][attribute]
+                    i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
+                # if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
+                #     best_cut.direction = cut_direction
+                #     best_cut.value = (value + value_2) / 2
+                #     # best_cut.value = (current_value + value) / 2
+                #     best_cut.empirical_risk = temp_empirical_risk
+                #     best_cut.exists = True
+
+            else:
+                i = len(self.X) - 1 if cut_direction == GREATER_EQUAL else 0
+                previous_position = self.inverted_list[attribute][i]
+                previous_value = self.X[previous_position][attribute]
+                # count = 0
+                while (cut_direction == GREATER_EQUAL and i >= 0) or (cut_direction != GREATER_EQUAL and i < len(self.X)):
+                    curr_position = self.inverted_list[attribute][i]
+                    if self.covered_instances[curr_position] == 1:
+                        if True:  # TODO ismissing(attribute)
+                            # count += 1
+                            curr_value = self.X[curr_position][attribute]
+                            weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
+
+                            # print("curr_position", curr_position)
+                            # print("previous_posiiton", previous_position)
+                            # print("curr_value:", curr_value)
+                            # print("previous_value:", previous_value)
+                            #
+                            #
+                            # print("empirical risk:", temp_empirical_risk)
+                            # print()
+
+                            if previous_value != curr_value:
+                                if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
+                                    # print(previous_value, curr_value)
+                                    best_cut.direction = cut_direction
+                                    best_cut.value = (previous_value + curr_value) / 2
+                                    best_cut.empirical_risk = temp_empirical_risk
+                                    best_cut.exists = True
+
+                            temp_empirical_risk = self.compute_current_empirical_risk(
+                                curr_position, self.covered_instances[curr_position] * weight)
+
+                            print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
+
+                            previous_value = self.X[curr_position][attribute]
+                    i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
+        print()
+        print(attribute)
+        from pprint import pprint
+        pprint(vars(best_cut))
         return best_cut
 
     def mark_covered_instances(self, best_attribute, cut):
@@ -184,6 +249,29 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 self.gradient += INSTANCE_WEIGHT * weight
             self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
             if self.use_gradient:
+                return -self.gradient
+            else:
+                self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (1 - self.probability[next_position][self.max_k]))
+                return - self.gradient * abs(self.gradient) / self.hessian
+        else:
+            raise
+
+    def compute_current_empirical_risk_optimized(self, curr_index, attribute, weight):
+        if PRE_CHOSEN_K:
+            # if self.y[next_position] == self.max_k:
+            #     self.gradient += INSTANCE_WEIGHT * weight
+            # self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
+
+            if self.use_gradient:
+                for i in range(self.last_index_computation_of_empirical_risk, curr_index+1):
+                    object_index = self.inverted_list[attribute][i]
+                    # print("adding gradient for object number:", object_index)
+                    if self.y[object_index] == self.max_k:
+                        self.gradient += INSTANCE_WEIGHT * weight
+                    self.gradient -= INSTANCE_WEIGHT * weight * self.probability[object_index][self.max_k]
+                    object_index += 1
+                # print(-self.gradient, "next_position:", next_position)
+                self.last_index_computation_of_empirical_risk = curr_index+1
                 return -self.gradient
             else:
                 self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (1 - self.probability[next_position][self.max_k]))
@@ -258,6 +346,20 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         X = np.array(X)
         sorted_indices = np.argsort(X, axis=0)
         self.inverted_list = sorted_indices.T
+        if self.optimized_searching_for_cut:
+            print("inverted list:")
+            print(self.inverted_list)
+            self.indices_for_better_cuts = {}
+            for i_attr, indices_in_order in enumerate(self.inverted_list):
+                self.indices_for_better_cuts[i_attr] = []
+
+                for i_index in range(len(indices_in_order) - 1):
+                    if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]]:
+                        self.indices_for_better_cuts[i_attr].append(i_index)
+                    pass
+            print(self.indices_for_better_cuts)
+
+
 
     def update_value_of_f(self, decision):
         for i in range(len(self.X)):
