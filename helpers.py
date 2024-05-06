@@ -1,5 +1,4 @@
 
-
 def from_csv(filename):
     import pandas as pd
     return pd.read_csv(filename, encoding='utf-8')
