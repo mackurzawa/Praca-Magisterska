@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import os
 
 
 def visualise_history(model):
@@ -8,4 +9,5 @@ def visualise_history(model):
     plt.ylabel("Accuracy")
     plt.xlabel("Rules")
     plt.title("Accuracy vs no. rules")
+    plt.savefig(os.path.join('Plots', 'Last trained model.png'))
     plt.show()
