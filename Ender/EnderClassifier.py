@@ -18,10 +18,11 @@ Rp = 1e-5
 
 
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
-    def __init__(self, n_rules=100, use_gradient=True, save_history=True, optimized_searching_for_cut=True):
+    def __init__(self, n_rules=100, use_gradient=True, save_history=True, optimized_searching_for_cut=True, prune=False):
         self.n_rules = n_rules
         self.rules = []
 
+        self.prune = prune
         self.use_gradient = use_gradient
         self.nu = nu
 
@@ -29,6 +30,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.save_history = save_history
         self.history = {'accuracy': [],
                         'mean_absolute_error': []}
+
+        self.is_fitted_ = False
 
     def fit(self, X, y):
         self.attribute_names = X.columns
@@ -42,6 +45,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         self.create_rules(X)
 
+        if self.prune:
+            self.prune_rules()
+
         self.is_fitted_ = True
 
         return self.history if self.save_history else None
@@ -50,11 +56,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.create_inverted_list(X)
         self.covered_instances = [1 for _ in range(len(X))]
 
-        self.rules = [self.create_default_rule()]
+        self.default_rule = self.create_default_rule()
+        self.rules = []
         if self.save_history:
             self.save_epoch()
-        self.update_value_of_f(self.rules[0])
-        print("Default rule:", self.rules[0])
+        self.update_value_of_f(self.default_rule)
+        print("Default rule:", self.default_rule)
         for i_rule in range(self.n_rules):
             print('####################################################################################')
             print(f"Rule: {i_rule + 1}")
@@ -219,14 +226,14 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                             temp_empirical_risk = self.compute_current_empirical_risk(
                                 curr_position, self.covered_instances[curr_position] * weight)
 
-                            print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
+                            # print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
 
                             previous_value = self.X[curr_position][attribute]
                     i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
-        print()
-        print(attribute)
-        from pprint import pprint
-        pprint(vars(best_cut))
+        # print()
+        # print(attribute)
+        # from pprint import pprint
+        # pprint(vars(best_cut))
         return best_cut
 
     def mark_covered_instances(self, best_attribute, cut):
@@ -347,8 +354,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         sorted_indices = np.argsort(X, axis=0)
         self.inverted_list = sorted_indices.T
         if self.optimized_searching_for_cut:
-            print("inverted list:")
-            print(self.inverted_list)
+            # print("inverted list:")
+            # print(self.inverted_list)
             self.indices_for_better_cuts = {}
             for i_attr, indices_in_order in enumerate(self.inverted_list):
                 self.indices_for_better_cuts[i_attr] = []
@@ -357,7 +364,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]]:
                         self.indices_for_better_cuts[i_attr].append(i_index)
                     pass
-            print(self.indices_for_better_cuts)
+            # print(self.indices_for_better_cuts)
 
 
 
@@ -367,17 +374,21 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 for k in range(self.num_classes):
                     self.value_of_f[i][k] += decision[k]
 
-    def predict(self, X):
+    def predict(self, X, show_before_pruning=False):
         # check_is_fitted(self, 'is_fitted_')
 
         X = check_array(X)
 
-        predictions = [self.predict_instance(x) for x in X]
+        predictions = [self.predict_instance(x, show_before_pruning) for x in X]
         return predictions
 
-    def predict_instance(self, x):
-        value_of_f_instance = self.rules[0]
-        for rule in self.rules[1:]:
+    def predict_instance(self, x, show_before_pruning):
+        value_of_f_instance = self.default_rule
+        if self.prune and self.is_fitted_ and not show_before_pruning:
+            rules = self.effective_rules
+        else:
+            rules = self.rules
+        for rule in rules:
             value_of_f_instance = [elem_1 + elem_2 for elem_1, elem_2 in zip(value_of_f_instance, rule.classify_instance(x))]
         return value_of_f_instance
 
@@ -400,3 +411,35 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         self.history['accuracy'].append(metrics['accuracy'])
         self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
+
+    def prune_rules(self, alpha=0.000001):
+        from sklearn.multioutput import MultiOutputRegressor
+        from sklearn.linear_model import Lasso
+
+        self.prune = True
+        rule_feature_matrix = [[weight for rule in self.rules for weight in rule.classify_instance(X)] for X in self.X]
+        # print(np.array(rule_feature_matrix))
+        y_list = np.zeros((len(self.X), self.num_classes))
+        for i_y, y in enumerate(self.y): y_list[i_y][y] = 1
+        # print(self.y)
+        # print(y_list)
+
+        multioutput_regressor = MultiOutputRegressor(Lasso(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
+        multioutput_regressor.fit(rule_feature_matrix, y_list)
+
+        weights = np.array([regressor.coef_ for regressor in multioutput_regressor.estimators_])
+        weights = np.absolute(weights)
+        consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-1)])
+        # print(consolidated_weights)
+        effective_rule_indices = np.argsort(consolidated_weights)[::-1]
+        # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
+        # effective_rule_indices += 1
+
+        self.effective_rules = []
+        for rule_index in effective_rule_indices:
+            if consolidated_weights[rule_index] != 0:
+                self.effective_rules.append(self.rules[rule_index])
+        # print(self.effective_rules)
+
+        print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
+        print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
