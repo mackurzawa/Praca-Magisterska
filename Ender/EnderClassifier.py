@@ -374,17 +374,17 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 for k in range(self.num_classes):
                     self.value_of_f[i][k] += decision[k]
 
-    def predict(self, X, show_before_pruning=False):
+    def predict(self, X, dont_use_effective_rules=False):
         # check_is_fitted(self, 'is_fitted_')
 
         X = check_array(X)
 
-        predictions = [self.predict_instance(x, show_before_pruning) for x in X]
+        predictions = [self.predict_instance(x, dont_use_effective_rules) for x in X]
         return predictions
 
-    def predict_instance(self, x, show_before_pruning):
+    def predict_instance(self, x, dont_use_effective_rules):
         value_of_f_instance = self.default_rule
-        if self.prune and self.is_fitted_ and not show_before_pruning:
+        if self.prune and self.is_fitted_ and not dont_use_effective_rules:
             rules = self.effective_rules
         else:
             rules = self.rules
@@ -409,27 +409,32 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         y_preds = self.predict(self.X)
         metrics = calculate_all_metrics(self.y, y_preds)
 
-        self.history['accuracy'].append(metrics['accuracy'])
+        self.history['accuracy'].append(metrics['accuracy_train'])
         self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
 
     def prune_rules(self, alpha=0.000001):
         from sklearn.multioutput import MultiOutputRegressor
         from sklearn.linear_model import Lasso
+        from sklearn.linear_model import Ridge
+        from sklearn.linear_model import LogisticRegression
 
         self.prune = True
-        rule_feature_matrix = [[weight for rule in self.rules for weight in rule.classify_instance(X)] for X in self.X]
-        # print(np.array(rule_feature_matrix))
+        # rule_feature_matrix = [[weight for rule in self.rules for weight in rule.classify_instance(X)] for X in self.X]
+        rule_feature_matrix = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in self.X]
+        print(np.array(rule_feature_matrix))
         y_list = np.zeros((len(self.X), self.num_classes))
         for i_y, y in enumerate(self.y): y_list[i_y][y] = 1
         # print(self.y)
         # print(y_list)
 
         multioutput_regressor = MultiOutputRegressor(Lasso(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
+        # multioutput_regressor = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
+        # multioutput_regressor = MultiOutputRegressor(LogisticRegression(penalty='l1', solver='liblinear', C=alpha))  # or 'saga' solver
         multioutput_regressor.fit(rule_feature_matrix, y_list)
 
         weights = np.array([regressor.coef_ for regressor in multioutput_regressor.estimators_])
         weights = np.absolute(weights)
-        consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-1)])
+        consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
         # print(consolidated_weights)
         effective_rule_indices = np.argsort(consolidated_weights)[::-1]
         # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
