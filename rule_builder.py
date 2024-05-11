@@ -80,7 +80,6 @@ class RuleBuilder:
                 covered_instances = self.mark_covered_instances(best_attribute, covered_instances, best_cut)
 
 
-
         pass
 
     def initialize_for_rule(self, f, covered_instances):
