@@ -178,7 +178,6 @@ class RuleBuilder:
             decision[chosen_k] = alpha_nr * (self.K - 1) / self.K
             return decision
 
-
     def find_best_cut(self, attribute, covered_instances):
         best_cut = Cut(self.K)
         best_cut.position = -1
