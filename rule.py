@@ -1,4 +1,4 @@
-class Rule:
+class Rule: 
     serialVersionUID = -1
     GREATER_EQUAL = 1
     LESS_EQUAL = -1
