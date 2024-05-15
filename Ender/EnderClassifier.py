@@ -374,22 +374,23 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 for k in range(self.num_classes):
                     self.value_of_f[i][k] += decision[k]
 
-    def predict(self, X, dont_use_effective_rules=False):
+    def predict(self, X, use_effective_rules=True):
         # check_is_fitted(self, 'is_fitted_')
 
         X = check_array(X)
 
-        predictions = [self.predict_instance(x, dont_use_effective_rules) for x in X]
+        predictions = [self.predict_instance(x, use_effective_rules) for x in X]
         return predictions
 
-    def predict_instance(self, x, dont_use_effective_rules):
-        value_of_f_instance = self.default_rule
-        if self.prune and self.is_fitted_ and not dont_use_effective_rules:
+    def predict_instance(self, x, use_effective_rules):
+        value_of_f_instance = np.array(self.default_rule)
+        if self.prune and self.is_fitted_ and use_effective_rules:
             rules = self.effective_rules
         else:
             rules = self.rules
         for rule in rules:
-            value_of_f_instance = [elem_1 + elem_2 for elem_1, elem_2 in zip(value_of_f_instance, rule.classify_instance(x))]
+            # value_of_f_instance = [elem_1 + elem_2 for elem_1, elem_2 in zip(value_of_f_instance, rule.classify_instance(x))]
+            value_of_f_instance += rule.classify_instance(x)
         return value_of_f_instance
 
     def score(self, X, y):
@@ -412,39 +413,125 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.history['accuracy'].append(metrics['accuracy_train'])
         self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
 
-    def prune_rules(self, alpha=0.000001):
+    def prune_rules(self, regressor, x_tr, x_te, y_tr, y_te, alpha=0.000001):
         from sklearn.multioutput import MultiOutputRegressor
         from sklearn.linear_model import Lasso
         from sklearn.linear_model import Ridge
         from sklearn.linear_model import LogisticRegression
+        from sklearn.linear_model import lasso_path
+        from sklearn.linear_model import lars_path
 
         self.prune = True
-        # rule_feature_matrix = [[weight for rule in self.rules for weight in rule.classify_instance(X)] for X in self.X]
         rule_feature_matrix = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in self.X]
-        print(np.array(rule_feature_matrix))
-        y_list = np.zeros((len(self.X), self.num_classes))
-        for i_y, y in enumerate(self.y): y_list[i_y][y] = 1
-        # print(self.y)
-        # print(y_list)
+        # print(np.array(rule_feature_matrix))
 
-        multioutput_regressor = MultiOutputRegressor(Lasso(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
-        # multioutput_regressor = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
-        # multioutput_regressor = MultiOutputRegressor(LogisticRegression(penalty='l1', solver='liblinear', C=alpha))  # or 'saga' solver
-        multioutput_regressor.fit(rule_feature_matrix, y_list)
+        if regressor == 'MultiOutputRidge':
+            pruning_model = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
+        elif regressor == 'LogisticRegressorL1':
+            pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=alpha)
+        elif regressor == 'LogisticRegressorL2':
+            pruning_model = LogisticRegression(multi_class='auto', penalty='l2', C=alpha)
+        elif regressor == "LarsPath":
+            from matplotlib import pyplot as plt
+            import os
+            print(self.y)
+            # _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True)
+            _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True, positive=True)
+            # _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lar", eps=1, verbose=True)
+            # _, _, coefs = lasso_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), eps=0.001, verbose=True)
+            print(coefs, coefs.shape)
+            acc_new = []
+            x_acc_new = []
+            for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
+                print(f'Ile ma niezerową wartosc w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step))
+                print(np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
+                self.effective_rules = []
+                for rule_index in np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]:
+                    self.effective_rules.append(self.rules[rule_index])
+                self.predict(self.X, use_effective_rules=True)
+                y_train_preds = self.predict(x_tr)
+                y_test_preds = self.predict(x_te)
+                final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
+                acc_new.append(final_metrics['accuracy_train'])
+                x_acc_new.append((len(self.effective_rules)))
+                print(final_metrics)
+                print()
 
-        weights = np.array([regressor.coef_ for regressor in multioutput_regressor.estimators_])
-        weights = np.absolute(weights)
-        consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
+            plt.figure(figsize=(10, 7))
+            plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'], label='old')
+            plt.plot(x_acc_new, acc_new, label='new')
+
+            plt.grid()
+            plt.ylabel("Accuracy")
+            plt.xlabel("Rules")
+            plt.title("Accuracy vs no. rules")
+            plt.legend()
+            plt.savefig(os.path.join('Plots', f'Model_{self.n_rules}_pruning_with_Lars.png'))
+            plt.show()
+            ###
+
+            xx = np.sum(np.abs(coefs.T), axis=1)
+            xx /= xx[-1]
+
+            plt.figure(figsize=(10, 7))
+            plt.plot(xx, coefs.T)
+            ymin, ymax = plt.ylim()
+            # plt.vlines(xx, ymin, ymax, linestyle="dashed")
+            plt.xlabel("|coef| / max|coef|")
+            plt.ylabel("Coefficients")
+            plt.title("LASSO Path")
+            plt.axis("tight")
+            plt.show()
+            return
+            pass
+        else:
+            raise "Choose right regressor for pruning!"
+        # pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=3.5*10e-3)
+
+        pruning_model.fit(rule_feature_matrix, self.y)
+        # print('koef')
+        # print(pruning_model.coef_)
+
+        # mean_abs_coef = np.sum(np.abs(pruning_model.coef_), axis=0)
+        # # Indeksy cech posortowane według średniej wartości bezwzględnej wag
+        # sorted_feature_indices = np.argsort(mean_abs_coef)[::-1]
+        # # Wyświetlanie wyników
+        # print("Najważniejsze cechy wejściowe (posortowane według średniej wartości bezwzględnej wag):")
+        # for idx in sorted_feature_indices:
+        #     print(f"Cecha {idx}: {mean_abs_coef[idx]}")
+
+        weights = np.sum(np.abs(pruning_model.coef_), axis=0)
+        # weights = np.absolute(weights)
+        # print(multioutput_regressor.estimators_[0].coef_[0])
+        # print(weights)
+        # consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
         # print(consolidated_weights)
-        effective_rule_indices = np.argsort(consolidated_weights)[::-1]
+
+        # effective_rule_indices = np.argsort(consolidated_weights)[::-1]
+        effective_rule_indices = np.argsort(weights)[::-1]
         # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
         # effective_rule_indices += 1
 
         self.effective_rules = []
         for rule_index in effective_rule_indices:
-            if consolidated_weights[rule_index] != 0:
+            if abs(weights[rule_index]) > 10e-5:
                 self.effective_rules.append(self.rules[rule_index])
         # print(self.effective_rules)
 
-        print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
-        print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
+        # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
+        # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
+        print(f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
+
+    def temp_predict_with_specific_rules(self, X, rule_indices):
+
+        X = check_array(X)
+        preds = []
+        for x in X:
+            pred = np.array(self.default_rule)
+            for rule_index in rule_indices:
+                pred += np.array(self.rules[rule_index].classify_instance(x))
+            # print(pred, pred.shape)
+            preds.append(pred)
+            # print(preds)
+            # print(preds.shape)
+        return np.array(preds)
