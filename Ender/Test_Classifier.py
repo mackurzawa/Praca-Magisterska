@@ -8,7 +8,7 @@ from CalculateMetrics import calculate_all_metrics
 from VisualiseHistory import visualise_history
 import numpy as np
 
-n_rules = 5
+n_rules = 20
 use_gradient = True
 save_history = True
 # optimized_searching_for_cut = True
@@ -58,43 +58,20 @@ final_metrics = calculate_all_metrics(y_train, y_train_preds, y_test, y_test_pre
 print("Before pruning:", final_metrics)
 
 # for pruning_regressor, alpha in [('LarsPath', 1), ('LogisticRegressorL1', 0.005), ('LogisticRegressorL2', 10e-7)]:
-# for pruning_regressor, alpha in [('LarsPath', 1)]:
-#     print()
-#     print(pruning_regressor)
-#     ender.prune_rules(pruning_regressor, alpha=alpha, x_tr=X_train, x_te=X_test, y_tr=y_train, y_te=y_test)
-#     y_train_preds = ender.predict(X_train)
-#     y_test_preds = ender.predict(X_test)
-#     final_metrics = calculate_all_metrics(y_train, y_train_preds, y_test, y_test_preds)
-#     print("After pruning:", final_metrics)
-#
-#     # visualise_history(ender)
-#     print(f"Normal accuracy when using same no. rules: {ender.history['accuracy'][len(ender.effective_rules)]}")
-#     # print(ender.history['accuracy'])
+for pruning_regressor, alpha in [('LarsPath', 1)]:
+    print()
+    print(pruning_regressor)
+    ender.prune_rules(pruning_regressor, alpha=alpha, x_tr=X_train, x_te=X_test, y_tr=y_train, y_te=y_test)
+    y_train_preds = ender.predict(X_train)
+    y_test_preds = ender.predict(X_test)
+    final_metrics = calculate_all_metrics(y_train, y_train_preds, y_test, y_test_preds)
+    print("After pruning:", final_metrics)
 
-# print('X_train', X_train)
-# preds = ender.temp_predict_with_specific_rules(X_train, [10, 12, 14, 0])
-# print(calculate_all_metrics(y_train, preds))
-# preds = ender.temp_predict_with_specific_rules(X_train, [0, 14, 10, 12])
-# print(calculate_all_metrics(y_train, preds))
+    # visualise_history(ender)
+    print(f"Normal accuracy when using same no. rules: {ender.history['accuracy'][len(ender.effective_rules)]}")
+    # print(ender.history['accuracy'])
 
-from sklearn.utils.validation import check_array
-X_train = check_array(X_train)
-examples_to_check = list(range(100))
-X_train = X_train[examples_to_check]
-y_train = y_train[examples_to_check]
 
 rules_indices = [0, 1]
-my_preds = ender.temp_predict_with_specific_rules(X_train, rules_indices)
+my_preds = ender.predict_with_specific_rules(X_train, rules_indices)
 print(calculate_all_metrics(y_train, my_preds))
-
-ender.effective_rules = [ender.rules[i] for i in rules_indices]
-old_preds = ender.predict(X_train, use_effective_rules=True)
-print(calculate_all_metrics(y_train, old_preds))
-
-print(X_train[0])
-for i in range(len(old_preds)):
-    if my_preds[i][0] != old_preds[i][0] or my_preds[i][1] != old_preds[i][1]:
-        print(i)
-        print(my_preds[i])
-        print(old_preds[i])
-        print()
