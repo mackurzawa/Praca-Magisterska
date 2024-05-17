@@ -6,7 +6,7 @@ from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.metrics import accuracy_score
 from Rule import Rule
 from Cut import Cut
-from CalculateMetrics import calculate_all_metrics
+from CalculateMetrics import calculate_all_metrics, calculate_accuracy
 
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
@@ -29,13 +29,22 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.optimized_searching_for_cut = optimized_searching_for_cut
         self.save_history = save_history
         self.history = {'accuracy': [],
-                        'mean_absolute_error': []}
+                        'mean_absolute_error': [],
+                        'accuracy_test': [],
+                        'mean_absolute_error_test': []}
 
         self.is_fitted_ = False
 
-    def fit(self, X, y):
+        self.X_test = None
+        self.y_test = None
+
+    def fit(self, X, y, X_test=None, y_test=None):
         self.attribute_names = X.columns
         X, y = check_X_y(X, y)
+        if X_test is not None and y_test is not None:
+            X_test, y_test = check_X_y(X_test, y_test)
+            self.X_test = X_test
+            self.y_test = y_test
         self.X = X
         self.y = y
 
@@ -419,9 +428,15 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     def save_epoch(self):
         y_preds = self.predict(self.X)
         metrics = calculate_all_metrics(self.y, y_preds)
-
-        self.history['accuracy'].append(metrics['accuracy_train'])
+        self.history['accuracy'].append(metrics['accuracy'])
         self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
+
+        if self.X_test is not None and self.y_test is not None:
+            y_test_preds = self.predict(self.X_test)
+            metrics_test = calculate_all_metrics(self.y_test, y_test_preds)
+            self.history['accuracy_test'].append(metrics_test['accuracy'])
+            self.history['mean_absolute_error_test'].append(metrics_test['mean_absolute_error'])
+
 
     def prune_rules(self, regressor, x_tr, x_te, y_tr, y_te, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False, lars_show_accuracy_graph=False, lars_verbose=False):
         from sklearn.multioutput import MultiOutputRegressor
@@ -431,6 +446,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         from sklearn.linear_model import lasso_path
         from sklearn.linear_model import lars_path
 
+        if regressor == 'Filter':
+            self.filter_pruning(x_tr, x_te, y_tr, y_te)
+            return
         self.prune = True
         rule_feature_matrix = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in self.X]
         # print(np.array(rule_feature_matrix))
@@ -445,10 +463,19 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             from matplotlib import pyplot as plt
             import os
             # Coefs is the matrix n_rules X alphas
-            _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True)
-            # _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True, positive=True)
-            # _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lar", eps=1, verbose=True)
-            # _, _, coefs = lasso_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), eps=0.001, verbose=True)
+            # lars = False
+            lars = True
+            # positive = False
+            positive = True
+            if not positive and lars:
+                _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True)
+            elif positive and lars:
+                _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True, positive=True)
+            # Same as first condition
+            elif not positive and lars:
+                _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lar", eps=1, verbose=True)
+            if not positive and not lars:
+                _, _, coefs = lasso_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), eps=1, verbose=True)
 
             acc_new = []
             x_acc_new = []
@@ -479,7 +506,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 plt.xlabel("Rules")
                 plt.title("Accuracy vs no. rules")
                 plt.legend()
-                plt.savefig(os.path.join('Plots', f'Model_{self.n_rules}_pruning_with_Lars.png'))
+                plt.savefig(os.path.join('Plots', f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
                 plt.show()
             if lars_show_path:
                 xx = np.sum(np.abs(coefs.T), axis=1)
@@ -493,6 +520,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 plt.ylabel("Coefficients")
                 plt.title("LASSO Path")
                 plt.axis("tight")
+                plt.savefig(os.path.join('Plots', f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
                 plt.show()
             return
         else:
@@ -532,3 +560,37 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
         # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
         print(f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
+
+    def filter_pruning(self, X_train, X_test, y_train, y_test, verbose=True):
+        from tqdm import tqdm
+        from matplotlib import pyplot as plt
+        import os
+        final_rules_indices = []
+        final_rules_acc_train = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        final_rules_acc_test = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        for _ in tqdm(range(self.n_rules)):
+            max_acc = 0
+            max_acc_index = -1
+            for i in range(self.n_rules):
+                if i in final_rules_indices:
+                    continue
+                y_preds = self.predict_with_specific_rules(X_train, final_rules_indices + [i])
+                current_acc = calculate_accuracy(y_train, y_preds)
+                if current_acc > max_acc:
+                    max_acc = current_acc
+                    max_acc_index = i
+            final_rules_indices.append(max_acc_index)
+            final_rules_acc_train.append(max_acc)
+            final_rules_acc_test.append(calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, final_rules_indices)))
+        if verbose:
+            print(f"Rules order: {final_rules_indices} Accuracies: {final_rules_acc_train}")
+            plt.figure(figsize=(10, 7))
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules+1)), final_rules_acc_train, label='Pruned rules, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), final_rules_acc_test, label='Pruned rules, test dataset', c='g', linestyle='dashed')
+            plt.legend()
+            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter method')
+            plt.savefig(os.path.join('Plots', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
+            plt.show()
+        return

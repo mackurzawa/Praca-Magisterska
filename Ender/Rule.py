@@ -27,15 +27,6 @@ class Rule():
 
     def classify_instance(self, x, prune=False): # TODO delete prune
         for condition in self.conditions:
-            # if prune:
-            #     print(condition[1], type(condition[1]), condition[0], type(condition[0]), condition[2], type(condition[2]))
-            #     print(x, type(x))
-            #     print(x[0])
-            #     print(x[1])
-            #     print(x[2])
-            #     print(x[3])
-            #     print(x[4])
-            #     print(x[condition[0]])
             if not condition[1] <= x[condition[0]] <= condition[2]:
                 return 0 if type(self.decision) is int else [0 for _ in range(len(self.decision))]
         return self.decision
