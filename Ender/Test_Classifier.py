@@ -55,7 +55,7 @@ print("Before pruning test: ", final_metrics_test)
 
 # for pruning_regressor, alpha in [('LarsPath', 1), ('LogisticRegressorL1', 0.005), ('LogisticRegressorL2', 10e-7)]:
 pruning_methods = [('LarsPath', 1)]
-pruning_methods = [('Filter', None)] # Potentially 'accuracy'
+pruning_methods = [('Wrapper', None)] # Potentially 'accuracy'
 # pruning_methods = []
 for pruning_regressor, alpha in pruning_methods:
     print()

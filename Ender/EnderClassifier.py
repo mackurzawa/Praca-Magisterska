@@ -446,8 +446,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         from sklearn.linear_model import lasso_path
         from sklearn.linear_model import lars_path
 
-        if regressor == 'Filter':
-            self.filter_pruning(x_tr, x_te, y_tr, y_te)
+        if regressor == 'Wrapper':
+            self.wrapper_pruning(x_tr, x_te, y_tr, y_te)
             return
         self.prune = True
         rule_feature_matrix = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in self.X]
@@ -561,7 +561,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
         print(f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
 
-    def filter_pruning(self, X_train, X_test, y_train, y_test, verbose=True):
+    def wrapper_pruning(self, X_train, X_test, y_train, y_test, verbose=True):
         from tqdm import tqdm
         from matplotlib import pyplot as plt
         import os
@@ -590,7 +590,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
             plt.plot(list(range(self.n_rules+1)), final_rules_acc_test, label='Pruned rules, test dataset', c='g', linestyle='dashed')
             plt.legend()
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter method')
-            plt.savefig(os.path.join('Plots', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
+            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
+            plt.savefig(os.path.join('Plots', f'Wrapper_{self.dataset_name}_{self.n_rules}.png'))
             plt.show()
         return
