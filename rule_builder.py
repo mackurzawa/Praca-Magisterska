@@ -102,7 +102,7 @@ class RuleBuilder:
                 # print(self.gradients)
                 if self.pre_chosen_k:
                     self.gradients[self.y[i]] += self.weights[i]
-                    # print('y:')
+                    # print('y:') 
                     # print(self.y[i])
 
         if self.pre_chosen_k:
