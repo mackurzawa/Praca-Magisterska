@@ -1,4 +1,5 @@
 import pickle
+from time import time
 from sklearn.model_selection import train_test_split
 
 
@@ -8,9 +9,10 @@ from CalculateMetrics import calculate_all_metrics
 from VisualiseHistory import visualise_history
 import numpy as np
 
-n_rules = 20
+n_rules = 100
 use_gradient = True
 save_history = True
+# save_history = False
 # optimized_searching_for_cut = True
 optimized_searching_for_cut = False
 prune = False
@@ -35,7 +37,9 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 if TRAIN_NEW:
     ender = EnderClassifier(n_rules=n_rules, use_gradient=use_gradient, save_history=save_history, optimized_searching_for_cut=optimized_searching_for_cut, prune=prune)
+    time_started = time()
     ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
+    print(f"Rules created in {round(time() - time_started, 2)} s.")
     with open (f'model_{dataset}_{n_rules}.pkl', 'wb') as f:
         pickle.dump(ender, f, pickle.HIGHEST_PROTOCOL)
 else:
@@ -56,11 +60,12 @@ print("Before pruning test: ", final_metrics_test)
 # for pruning_regressor, alpha in [('LarsPath', 1), ('LogisticRegressorL1', 0.005), ('LogisticRegressorL2', 10e-7)]:
 pruning_methods = [('LarsPath', 1)]
 pruning_methods = [('Wrapper', None)] # Potentially 'accuracy'
+pruning_methods = [('Filter', None)] # Potentially 'accuracy'
 # pruning_methods = []
 for pruning_regressor, alpha in pruning_methods:
     print()
     print(pruning_regressor)
-    ender.prune_rules(pruning_regressor, alpha=alpha, x_tr=X_train, x_te=X_test, y_tr=y_train, y_te=y_test, lars_how_many_rules=1, lars_show_path=True, lars_show_accuracy_graph=True, lars_verbose=True)
+    ender.prune_rules(regressor=pruning_regressor, alpha=alpha, x_tr=X_train, x_te=X_test, y_tr=y_train, y_te=y_test, lars_how_many_rules=1, lars_show_path=True, lars_show_accuracy_graph=True, lars_verbose=True)
     y_train_preds = ender.predict(X_train)
     y_test_preds = ender.predict(X_test)
     final_metrics_train = calculate_all_metrics(y_train, y_train_preds)

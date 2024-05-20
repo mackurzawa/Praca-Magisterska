@@ -405,6 +405,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     def predict_with_specific_rules(self, X, rule_indices):
         X = check_array(X)
         preds = []
+        print(X.shape)
         for x in X:
             pred = np.array(self.default_rule)
             for rule_index in rule_indices:
@@ -438,19 +439,22 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             self.history['mean_absolute_error_test'].append(metrics_test['mean_absolute_error'])
 
 
-    def prune_rules(self, regressor, x_tr, x_te, y_tr, y_te, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False, lars_show_accuracy_graph=False, lars_verbose=False):
+    def prune_rules(self, regressor, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False, lars_show_accuracy_graph=False, lars_verbose=False, **kwargs):
         from sklearn.multioutput import MultiOutputRegressor
         from sklearn.linear_model import Lasso
         from sklearn.linear_model import Ridge
         from sklearn.linear_model import LogisticRegression
         from sklearn.linear_model import lasso_path
         from sklearn.linear_model import lars_path
-
-        if regressor == 'Wrapper':
-            self.wrapper_pruning(x_tr, x_te, y_tr, y_te)
-            return
         self.prune = True
         rule_feature_matrix = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in self.X]
+
+        if regressor == 'Wrapper':
+            self.wrapper_pruning(**kwargs)
+            return
+        elif regressor == 'Filter':
+            self.filter_pruning(rule_feature_matrix, **kwargs)
+            return
         # print(np.array(rule_feature_matrix))
 
         if regressor == 'MultiOutputRidge':
@@ -561,10 +565,16 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
         print(f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
 
-    def wrapper_pruning(self, X_train, X_test, y_train, y_test, verbose=True):
+    def wrapper_pruning(self, verbose=True, **kwargs):
         from tqdm import tqdm
         from matplotlib import pyplot as plt
         import os
+
+        X_train = kwargs['x_tr']
+        X_test = kwargs['x_te']
+        y_train = kwargs['y_tr']
+        y_test = kwargs['y_te']
+
         final_rules_indices = []
         final_rules_acc_train = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
         final_rules_acc_test = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
@@ -586,11 +596,63 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             print(f"Rules order: {final_rules_indices} Accuracies: {final_rules_acc_train}")
             plt.figure(figsize=(10, 7))
             plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules+1)), final_rules_acc_train, label='Pruned rules, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), final_rules_acc_train, label='Pruned rules Wrapper, train dataset', c='g')
             plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), final_rules_acc_test, label='Pruned rules, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), final_rules_acc_test, label='Pruned rules Wrapper, test dataset', c='g', linestyle='dashed')
             plt.legend()
             plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
             plt.savefig(os.path.join('Plots', f'Wrapper_{self.dataset_name}_{self.n_rules}.png'))
             plt.show()
+        return
+
+    def filter_pruning_one_method(self, method, rule_feature_matrix, **kwargs):
+        from sklearn.feature_selection import SelectKBest
+        from tqdm import tqdm
+
+        train_acc = []
+        test_acc = []
+        for i in tqdm(range(len(self.rules)+1)):
+            selector = SelectKBest(method, k=i)
+
+            selector.fit(rule_feature_matrix, self.y)
+            selected_rules_bool = selector.get_support()
+            chosen_rules = []
+            for rule_index, rule_is_chosen in enumerate(selected_rules_bool):
+                if rule_is_chosen:
+                    chosen_rules.append(rule_index)
+
+
+            y_train_preds = self.predict_with_specific_rules(kwargs['x_tr'], chosen_rules)
+            y_test_preds = self.predict_with_specific_rules(kwargs['x_te'], chosen_rules)
+            train_acc.append(calculate_accuracy(kwargs['y_tr'], y_train_preds))
+            test_acc.append(calculate_accuracy(kwargs['y_te'], y_test_preds))
+        return train_acc, test_acc
+
+    def filter_pruning(self, rule_feature_matrix, verbose=True, **kwargs):
+        from sklearn.feature_selection import SelectKBest, chi2, f_classif, mutual_info_classif
+        import matplotlib.pyplot as plt
+        import os
+
+        print("\tChi 2:")
+        chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix, **kwargs)
+        print("\tAnova:")
+        anova_train_acc, anova_test_acc = self.filter_pruning_one_method(f_classif, rule_feature_matrix, **kwargs)
+        print("\tMutual Info:")
+        mutual_info_train_acc, mutual_info_test_acc = self.filter_pruning_one_method(mutual_info_classif, rule_feature_matrix, **kwargs)
+
+        if verbose:
+            plt.figure(figsize=(10, 7))
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules+1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset', c='y')
+            plt.plot(list(range(self.n_rules+1)), mutual_info_train_acc, label='Pruned rules Filter Mutual_Info, train dataset', c='k')
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset', c='y', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), mutual_info_test_acc, label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
+            plt.legend()
+            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
+            plt.savefig(os.path.join('Plots', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
+            plt.show()
+
         return
