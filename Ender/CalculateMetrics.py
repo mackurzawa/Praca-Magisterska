@@ -9,7 +9,6 @@ def calculate_accuracy(y, y_preds):
 
 
 def calculate_all_metrics(y_train, y_train_preds, y_test=None, y_test_preds=None):
-
     # accuracy = accuracy_score(y, y_pred_labels)
     accuracy_train = calculate_accuracy(y_train, y_train_preds)
     accuracy_test = None
