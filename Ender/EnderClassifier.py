@@ -7,6 +7,8 @@ from sklearn.metrics import accuracy_score
 from Rule import Rule
 from Cut import Cut
 from CalculateMetrics import calculate_all_metrics, calculate_accuracy
+from multiprocessing import Pool
+
 
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
@@ -18,6 +20,8 @@ Rp = 1e-5
 
 
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
+    pool = None
+
     def __init__(self, n_rules=100, use_gradient=True, save_history=True, optimized_searching_for_cut=True, prune=False):
         self.n_rules = n_rules
         self.rules = []
@@ -384,11 +388,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     self.value_of_f[i][k] += decision[k]
 
     def predict(self, X, use_effective_rules=True):
+        from itertools import product
         # check_is_fitted(self, 'is_fitted_')
-
         X = check_array(X)
-
-        predictions = [self.predict_instance(x, use_effective_rules) for x in X]
+        if self.pool:
+            predictions = self.pool.starmap(self.predict_instance, product(X, [use_effective_rules]), chunksize=256)
+        else:
+            predictions = [self.predict_instance(x, use_effective_rules) for x in X]
         return predictions
 
     def predict_instance(self, x, use_effective_rules):
@@ -402,10 +408,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             value_of_f_instance += rule.classify_instance(x)
         return value_of_f_instance
 
+
+    def predict_instance_with_specific_rules(self):
+        pass
     def predict_with_specific_rules(self, X, rule_indices):
         X = check_array(X)
         preds = []
-        print(X.shape)
         for x in X:
             pred = np.array(self.default_rule)
             for rule_index in rule_indices:
@@ -433,6 +441,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
 
         if self.X_test is not None and self.y_test is not None:
+            from multiprocessing import Pool
             y_test_preds = self.predict(self.X_test)
             metrics_test = calculate_all_metrics(self.y_test, y_test_preds)
             self.history['accuracy_test'].append(metrics_test['accuracy'])
@@ -574,32 +583,59 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         X_test = kwargs['x_te']
         y_train = kwargs['y_tr']
         y_test = kwargs['y_te']
-
-        final_rules_indices = []
-        final_rules_acc_train = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
-        final_rules_acc_test = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        # UPWARD
+        print("\tUpward")
+        rules_indices_upward = []
+        train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
         for _ in tqdm(range(self.n_rules)):
             max_acc = 0
             max_acc_index = -1
             for i in range(self.n_rules):
-                if i in final_rules_indices:
+                if i in rules_indices_upward:
                     continue
-                y_preds = self.predict_with_specific_rules(X_train, final_rules_indices + [i])
+                y_preds = self.predict_with_specific_rules(X_train, rules_indices_upward + [i])
                 current_acc = calculate_accuracy(y_train, y_preds)
                 if current_acc > max_acc:
                     max_acc = current_acc
                     max_acc_index = i
-            final_rules_indices.append(max_acc_index)
-            final_rules_acc_train.append(max_acc)
-            final_rules_acc_test.append(calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, final_rules_indices)))
+            rules_indices_upward.append(max_acc_index)
+            train_acc_upward.append(max_acc)
+            test_acc_upward.append(calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
+        # DOWNWARD
+        print("\tDownward")
+        rules_indices_downward = []
+        train_acc_downward = [calculate_accuracy(y_train, self.predict(X_train, use_effective_rules=False))]
+        test_acc_downward = [calculate_accuracy(y_test, self.predict(X_test, use_effective_rules=False))]
+        indices_in_use = list(range(self.n_rules))
+        for _ in tqdm(range(self.n_rules)):
+            max_acc = 0
+            max_acc_index = -1
+            for rule_index in indices_in_use:
+                temp_indices_in_use = indices_in_use.copy()
+                temp_indices_in_use.remove(rule_index)
+                y_preds = self.predict_with_specific_rules(X_train, temp_indices_in_use)
+                current_acc = calculate_accuracy(y_train, y_preds)
+                if current_acc > max_acc:
+                    max_acc = current_acc
+                    max_acc_index = rule_index
+            indices_in_use.remove(max_acc_index)
+            rules_indices_downward.insert(0, max_acc_index)
+            train_acc_downward.insert(0, max_acc)
+            test_acc_downward.insert(0, calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, indices_in_use)))
+
         if verbose:
-            print(f"Rules order: {final_rules_indices} Accuracies: {final_rules_acc_train}")
+            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
             plt.figure(figsize=(10, 7))
             plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules+1)), final_rules_acc_train, label='Pruned rules Wrapper, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), train_acc_upward, label='Pruned rules Wrapper upward, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), train_acc_downward, label='Pruned rules Wrapper downward, train dataset', c='y')
             plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), final_rules_acc_test, label='Pruned rules Wrapper, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), test_acc_downward, label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
             plt.legend()
+            plt.xlabel("Rules")
+            plt.ylabel("Accuracy")
             plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
             plt.savefig(os.path.join('Plots', f'Wrapper_{self.dataset_name}_{self.n_rules}.png'))
             plt.show()
@@ -651,8 +687,15 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             plt.plot(list(range(self.n_rules+1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset', c='y', linestyle='dashed')
             plt.plot(list(range(self.n_rules+1)), mutual_info_test_acc, label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
             plt.legend()
+            plt.xlabel("Rules")
+            plt.ylabel("Accuracy")
             plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
             plt.savefig(os.path.join('Plots', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
             plt.show()
 
         return
+
+    def __getstate__(self):
+        self_dict = self.__dict__.copy()
+        del self_dict['pool']
+        return self_dict
