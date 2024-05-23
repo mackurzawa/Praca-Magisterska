@@ -17,7 +17,6 @@ prune = False
 # TRAIN_NEW = False
 TRAIN_NEW = True
 
-
 # X, y = prepare_wine_classification_dataset()
 # X, y = prepare_apple_small_classification_dataset()
 X, y = prepare_apple_classification_dataset()
