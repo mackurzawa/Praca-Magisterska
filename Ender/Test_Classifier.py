@@ -1,5 +1,6 @@
 import pickle
 from time import time
+import os
 from sklearn.model_selection import train_test_split
 
 
@@ -12,7 +13,7 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 20
+    n_rules = 100
     use_gradient = True
     save_history = True
     # save_history = False
@@ -44,10 +45,10 @@ if __name__ == "__main__":
         time_started = time()
         ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
         print(f"Rules created in {round(time() - time_started, 2)} s.")
-        with open (f'model_{dataset}_{n_rules}.pkl', 'wb') as f:
+        with open (os.path.join('models', f'model_{dataset}_{n_rules}.pkl'), 'wb') as f:
             pickle.dump(ender, f, pickle.HIGHEST_PROTOCOL)
     else:
-        with open (f'model_{dataset}_{n_rules}.pkl', 'rb') as f:
+        with open (os.path.join('models', f'model_{dataset}_{n_rules}.pkl'), 'rb') as f:
             ender = pickle.load(f)
         # ender.prune_rules(alpha=10e10) # n_rules
         # ender.prune_rules(regressor='LogisticRegressionL1', alpha=0.005)
@@ -63,9 +64,11 @@ if __name__ == "__main__":
 
     # for pruning_regressor, alpha in [('LarsPath', 1), ('LogisticRegressorL1', 0.005), ('LogisticRegressorL2', 10e-7)]:
     pruning_methods = [('LarsPath', 1)]
+    pruning_methods = [('MyIdeaWrapper', None)] # Potentially 'accuracy'
     pruning_methods = [('Wrapper', None)] # Potentially 'accuracy'
-    # pruning_methods = [('Filter', None)] # Potentially 'accuracy'
-    # pruning_methods = []
+    pruning_methods = [('Filter', None)] # Potentially 'accuracy'
+    pruning_methods = [('Filter', None), ('MyIdeaWrapper', None), ('Wrapper', None)]
+    pruning_methods = [('Embedded', None)]
     for pruning_regressor, alpha in pruning_methods:
         print()
         print(pruning_regressor)

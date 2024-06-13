@@ -13,5 +13,7 @@ def visualise_history(model):
     plt.ylabel("Accuracy")
     plt.xlabel("Rules")
     plt.title("Accuracy vs no. rules - normal training")
-    plt.savefig(os.path.join('Plots', f'Model_{model.dataset_name}_{model.n_rules}.png'))
+    plt.savefig(os.path.join('Plots',
+                             'Training',
+                             f'Model_{model.dataset_name}_{model.n_rules}.png'))
     plt.show()

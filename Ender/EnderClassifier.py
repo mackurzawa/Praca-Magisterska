@@ -447,25 +447,281 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             self.history['accuracy_test'].append(metrics_test['accuracy'])
             self.history['mean_absolute_error_test'].append(metrics_test['mean_absolute_error'])
 
-
     def prune_rules(self, regressor, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False, lars_show_accuracy_graph=False, lars_verbose=False, **kwargs):
-        from sklearn.multioutput import MultiOutputRegressor
+        # self.prune = True
+        print(type(kwargs['x_tr']))
+        rule_feature_matrix_train = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in kwargs['x_tr'].to_numpy()]
+        rule_feature_matrix_test = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in kwargs['x_te'].to_numpy()]
+
+        if regressor == 'MyIdeaWrapper':
+            self.my_idea_wrapper_pruning(**kwargs)
+            return
+        elif regressor == 'Wrapper':
+            self.wrapper_pruning(rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+            return
+        elif regressor == 'Filter':
+            self.filter_pruning(rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+            return
+        # print(np.array(rule_feature_matrix))
+        elif regressor == "Embedded":
+            self.embedded_pruning(rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+            return
+
+
+    def filter_pruning_one_method(self, method, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
+        from sklearn.feature_selection import SelectKBest
+        from sklearn.linear_model import LogisticRegression
+        from tqdm import tqdm
+
+        X_train = kwargs['x_tr']
+        X_test = kwargs['x_te']
+        y_train = kwargs['y_tr']
+        y_test = kwargs['y_te']
+        train_acc = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        test_acc = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        for i in tqdm(range(1, len(self.rules)+1)):
+            selector = SelectKBest(method, k=i)
+
+            selector.fit(rule_feature_matrix_train, y_train)
+            selected_rules_bool = selector.get_support()
+            chosen_rules = []
+            for rule_index, rule_is_chosen in enumerate(selected_rules_bool):
+                if rule_is_chosen:
+                    chosen_rules.append(rule_index)
+
+            classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42, max_iter=200)
+
+            X_train_new = np.array(rule_feature_matrix_train)[:, chosen_rules]
+            X_test_new = np.array(rule_feature_matrix_test)[:, chosen_rules]
+            classifier.fit(X_train_new, y_train)
+            y_train_preds = classifier.predict(X_train_new)
+            y_test_preds = classifier.predict(X_test_new)
+            current_train_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
+            current_test_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
+            train_acc.append(current_train_acc)
+            test_acc.append(current_test_acc)
+
+        return train_acc, test_acc
+
+    def filter_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
+        from sklearn.feature_selection import SelectKBest, chi2, f_classif, mutual_info_classif
+        import matplotlib.pyplot as plt
+        import os
+
+        print("\tChi 2:")
+        chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+        print("\tAnova:")
+        anova_train_acc, anova_test_acc = self.filter_pruning_one_method(f_classif, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+        print("\tMutual Info:")
+        mutual_info_train_acc, mutual_info_test_acc = self.filter_pruning_one_method(mutual_info_classif, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+
+        if verbose:
+            plt.figure(figsize=(20, 14))
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules+1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset', c='y')
+            plt.plot(list(range(self.n_rules+1)), mutual_info_train_acc, label='Pruned rules Filter Mutual_Info, train dataset', c='k')
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset', c='y', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), mutual_info_test_acc, label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
+            plt.legend()
+            plt.xlabel("Rules")
+            plt.ylabel("Accuracy")
+            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
+            plt.savefig(os.path.join('Plots', 'Pruning', 'Filter', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
+            plt.show()
+
+        return
+
+    def my_idea_wrapper_pruning(self, verbose=True, **kwargs):
+        from tqdm import tqdm
+        from matplotlib import pyplot as plt
+        import os
+
+        X_train = kwargs['x_tr']
+        X_test = kwargs['x_te']
+        y_train = kwargs['y_tr']
+        y_test = kwargs['y_te']
+        # UPWARD
+        print("\tUpward")
+        rules_indices_upward = []
+        train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        for _ in tqdm(range(self.n_rules)):
+            max_acc = -1
+            max_acc_index = -1
+            for i in range(self.n_rules):
+                if i in rules_indices_upward:
+                    continue
+                y_preds = self.predict_with_specific_rules(X_train, rules_indices_upward + [i])
+                current_acc = calculate_accuracy(y_train, y_preds)
+                if current_acc > max_acc:
+                    max_acc = current_acc
+                    max_acc_index = i
+            rules_indices_upward.append(max_acc_index)
+            train_acc_upward.append(max_acc)
+            test_acc_upward.append(calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
+        # DOWNWARD
+        print("\tDownward")
+        rules_indices_downward = []
+        train_acc_downward = [calculate_accuracy(y_train, self.predict(X_train, use_effective_rules=False))]
+        test_acc_downward = [calculate_accuracy(y_test, self.predict(X_test, use_effective_rules=False))]
+        indices_in_use = list(range(self.n_rules))
+        for _ in tqdm(range(self.n_rules)):
+            max_acc = 0
+            max_acc_index = -1
+            for rule_index in indices_in_use:
+                temp_indices_in_use = indices_in_use.copy()
+                temp_indices_in_use.remove(rule_index)
+                y_preds = self.predict_with_specific_rules(X_train, temp_indices_in_use)
+                current_acc = calculate_accuracy(y_train, y_preds)
+                if current_acc > max_acc:
+                    max_acc = current_acc
+                    max_acc_index = rule_index
+            indices_in_use.remove(max_acc_index)
+            rules_indices_downward.insert(0, max_acc_index)
+            train_acc_downward.insert(0, max_acc)
+            test_acc_downward.insert(0, calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, indices_in_use)))
+
+        if verbose:
+            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
+            plt.figure(figsize=(20, 14))
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules+1)), train_acc_upward, label='Pruned rules My Idea Wrapper upward, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), train_acc_downward, label='Pruned rules My Idea Wrapper downward, train dataset', c='y')
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), test_acc_upward, label='Pruned rules My Idea Wrapper upward, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), test_acc_downward, label='Pruned rules My Idea Wrapper downward, test dataset', c='y', linestyle='dashed')
+            plt.legend()
+            plt.xlabel("Rules")
+            plt.ylabel("Accuracy")
+            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nMy idea Wrapper method')
+            plt.savefig(os.path.join('Plots', 'Pruning', 'MyIdeaWrapper', f'My_idea_Wrapper_{self.dataset_name}_{self.n_rules}.png'))
+            plt.show()
+        return
+
+    def wrapper_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
+        from tqdm import tqdm
+        from matplotlib import pyplot as plt
+        import os
+        from sklearn.linear_model import LogisticRegression
+
+
+        X_train = kwargs['x_tr']
+        X_test = kwargs['x_te']
+        y_train = kwargs['y_tr']
+        y_test = kwargs['y_te']
+        # UPWARD
+        print("\tUpward")
+        rules_indices_upward = []
+        train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        for _ in tqdm(range(self.n_rules)):
+            max_acc = -1
+            max_acc_index = -1
+            max_classifier = None
+            for i in range(self.n_rules):
+                if i in rules_indices_upward:
+                    continue
+                X_train_new = np.array(rule_feature_matrix_train)[:, rules_indices_upward+[i]]
+
+                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42)
+                # classifier = svm.SVC(random_state=42)
+
+                classifier.fit(X_train_new, y_train)
+                y_train_preds = classifier.predict(X_train_new)
+
+                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
+
+                if current_acc > max_acc:
+                    max_acc = current_acc
+                    max_acc_index = i
+                    max_classifier = classifier
+            rules_indices_upward.append(max_acc_index)
+            # print('Indices', rules_indices_upward)
+            X_test_new = np.array(rule_feature_matrix_test)[:, rules_indices_upward]
+            y_test_preds = max_classifier.predict(X_test_new)
+            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
+
+            train_acc_upward.append(max_acc)
+            test_acc_upward.append(max_acc_test)
+
+        # DOWNWARD
+        print("\tDownward")
+        rules_indices_downward = []
+        classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42)
+        classifier.fit(np.array(rule_feature_matrix_train), y_train)
+        y_train_preds = classifier.predict(np.array(rule_feature_matrix_train))
+        y_test_preds = classifier.predict(np.array(rule_feature_matrix_test))
+        train_acc_downward = [sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)]
+        test_acc_downward = [sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)]
+        indices_in_use = list(range(self.n_rules))
+        for _ in tqdm(range(self.n_rules-1)):
+            max_acc = 0
+            max_acc_index = -1
+            max_classifier = None
+            for rule_index in indices_in_use:
+                temp_indices_in_use = indices_in_use.copy()
+                temp_indices_in_use.remove(rule_index)
+                X_train_new = np.array(rule_feature_matrix_train)[:, temp_indices_in_use]
+
+                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42)
+                # classifier = svm.SVC(random_state=42)
+
+                classifier.fit(X_train_new, y_train)
+                y_train_preds = classifier.predict(X_train_new)
+                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
+
+                if current_acc > max_acc:
+                    max_acc = current_acc
+                    max_acc_index = rule_index
+                    max_classifier = classifier
+
+            indices_in_use.remove(max_acc_index)
+            rules_indices_downward.insert(0, max_acc_index)
+            X_test_new = np.array(rule_feature_matrix_test)[:, indices_in_use]
+            y_test_preds = max_classifier.predict(X_test_new)
+            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
+
+            train_acc_downward.insert(0, max_acc)
+            test_acc_downward.insert(0, max_acc_test)
+        train_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
+        test_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
+        #
+        if verbose:
+            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
+            print(f"Rules order: {rules_indices_downward} Accuracies: {test_acc_downward}")
+            plt.figure(figsize=(20, 14))
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules+1)), train_acc_upward, label='Pruned rules Wrapper upward, train dataset', c='g')
+            plt.plot(list(range(self.n_rules+1)), train_acc_downward, label='Pruned rules Wrapper downward, train dataset', c='y')
+            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules+1)), test_acc_downward, label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
+            plt.legend()
+            plt.xlabel("Rules")
+            plt.ylabel("Accuracy")
+            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
+            plt.savefig(os.path.join('Plots', 'Pruning', 'Wrapper', f'Wrapper_{self.dataset_name}_{self.n_rules}.png'))
+            plt.show()
+        return
+
+    def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.linear_model import Lasso
         from sklearn.linear_model import Ridge
         from sklearn.linear_model import LogisticRegression
         from sklearn.linear_model import lasso_path
         from sklearn.linear_model import lars_path
-        self.prune = True
-        rule_feature_matrix = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in self.X]
+        from sklearn.multioutput import MultiOutputRegressor
 
-        if regressor == 'Wrapper':
-            self.wrapper_pruning(**kwargs)
-            return
-        elif regressor == 'Filter':
-            self.filter_pruning(rule_feature_matrix, **kwargs)
-            return
-        # print(np.array(rule_feature_matrix))
+        X_train = kwargs['x_tr']
+        X_test = kwargs['x_te']
+        y_train = kwargs['y_tr']
+        y_test = kwargs['y_te']
 
+        regressor = 'LarsPath'
+        alpha = 0.1
         if regressor == 'MultiOutputRidge':
             pruning_model = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
         elif regressor == 'LogisticRegressorL1':
@@ -479,47 +735,80 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             # lars = False
             lars = True
             # positive = False
-            positive = True
+            positive = False
             if not positive and lars:
-                _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True)
-            elif positive and lars:
-                _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lasso", eps=1, verbose=True, positive=True)
-            # Same as first condition
-            elif not positive and lars:
-                _, _, coefs = lars_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), method="lar", eps=1, verbose=True)
-            if not positive and not lars:
-                _, _, coefs = lasso_path(np.array(rule_feature_matrix, dtype=np.float64), np.array(self.y), eps=1, verbose=True)
+                _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(y_train),
+                                        method="lasso", eps=1, verbose=True)
+            # elif positive and lars:
+            #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y),
+            #                             method="lasso", eps=1, verbose=True, positive=True)
+            # # Same as first condition
+            # elif not positive and lars:
+            #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), method="lar",
+            #                             eps=1, verbose=True)
+            # if not positive and not lars:
+            #     _, _, coefs = lasso_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), eps=1,
+            #                              verbose=True)
 
-            acc_new = []
-            x_acc_new = []
-            for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
-                # self.effective_rules = []
-                effective_rule_indices = np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]
-                if len(effective_rule_indices) == lars_how_many_rules:
-                    self.effective_rules = [self.rules[i] for i in effective_rule_indices]
+            lars_how_many_rules = 1
+            lars_verbose = True
+            lars_show_accuracy_graph = True
+            lars_show_path = True
 
-                y_train_preds = self.predict_with_specific_rules(x_tr, rule_indices=effective_rule_indices)
-                y_test_preds = self.predict_with_specific_rules(x_te, rule_indices=effective_rule_indices)
-                final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
-                acc_new.append(final_metrics['accuracy_train'])
-                x_acc_new.append((len(effective_rule_indices)))
+            train_acc = []
+            results_train = np.array(rule_feature_matrix_train) @ coefs
+            results_train[results_train > 0.5] = 1
+            results_train[results_train <= 0.5] = 0
+            for y_train_preds in results_train.T:
+                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
+                train_acc.append(current_acc)
 
-                if lars_verbose:
-                    print(f'Ile ma niezerową wartość w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step), np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
-                    print(final_metrics)
-                    print()
+            test_acc = []
+            results_test = np.array(rule_feature_matrix_test) @ coefs
+            threshold = 0.5
+            results_test[results_test > threshold] = 1
+            results_test[results_test <= threshold] = 0
+            for y_test_preds in results_test.T:
+                current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
+                test_acc.append(current_acc)
+            x_acc_new = list(range(len(results_train[0])))
+
+            # print(results[:5])
+            # for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
+            #     # self.effective_rules = []
+            #     effective_rule_indices = np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]
+            #     if len(effective_rule_indices) == lars_how_many_rules:
+            #         self.effective_rules = [self.rules[i] for i in effective_rule_indices]
+            #
+            #     y_train_preds = self.predict_with_specific_rules(x_tr, rule_indices=effective_rule_indices)
+            #     y_train_preds =
+            #     y_test_preds = self.predict_with_specific_rules(x_te, rule_indices=effective_rule_indices)
+            #     final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
+            #     acc_new.append(final_metrics['accuracy_train'])
+            #     x_acc_new.append((len(effective_rule_indices)))
+            #
+            #     if lars_verbose:
+            #         print(f'Ile ma niezerową wartość w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step),
+            #               np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
+            #         print(final_metrics)
+            #         print()
 
             if lars_show_accuracy_graph:
                 plt.figure(figsize=(10, 7))
-                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'], label='old')
-                plt.plot(x_acc_new, acc_new, label='new')
+                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'], label='Old rules, train dataset', c='b')
+                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'], label='Old rules, test dataset', linestyle='dashed', c='b')
+                plt.plot(x_acc_new, train_acc, label='Pruned rules, Embedded, train dataset', c='r')
+                plt.plot(x_acc_new, test_acc, label='Pruned rules, Embedded, test dataset', linestyle='dashed', c='r')
 
                 plt.grid()
                 plt.ylabel("Accuracy")
                 plt.xlabel("Rules")
                 plt.title("Accuracy vs no. rules")
                 plt.legend()
-                plt.savefig(os.path.join('Plots', f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
+                plt.savefig(os.path.join('Plots',
+                                         'pruning',
+                                         'Embedded',
+                                         f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
                 plt.show()
             if lars_show_path:
                 xx = np.sum(np.abs(coefs.T), axis=1)
@@ -533,7 +822,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 plt.ylabel("Coefficients")
                 plt.title("LASSO Path")
                 plt.axis("tight")
-                plt.savefig(os.path.join('Plots', f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
+                plt.savefig(
+                    os.path.join('Plots',
+                                 'pruning',
+                                 'Embedded',
+                                 f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
                 plt.show()
             return
         else:
@@ -572,128 +865,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
         # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
-        print(f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
-
-    def wrapper_pruning(self, verbose=True, **kwargs):
-        from tqdm import tqdm
-        from matplotlib import pyplot as plt
-        import os
-
-        X_train = kwargs['x_tr']
-        X_test = kwargs['x_te']
-        y_train = kwargs['y_tr']
-        y_test = kwargs['y_te']
-        # UPWARD
-        print("\tUpward")
-        rules_indices_upward = []
-        train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
-        test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
-        for _ in tqdm(range(self.n_rules)):
-            max_acc = 0
-            max_acc_index = -1
-            for i in range(self.n_rules):
-                if i in rules_indices_upward:
-                    continue
-                y_preds = self.predict_with_specific_rules(X_train, rules_indices_upward + [i])
-                current_acc = calculate_accuracy(y_train, y_preds)
-                if current_acc > max_acc:
-                    max_acc = current_acc
-                    max_acc_index = i
-            rules_indices_upward.append(max_acc_index)
-            train_acc_upward.append(max_acc)
-            test_acc_upward.append(calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
-        # DOWNWARD
-        print("\tDownward")
-        rules_indices_downward = []
-        train_acc_downward = [calculate_accuracy(y_train, self.predict(X_train, use_effective_rules=False))]
-        test_acc_downward = [calculate_accuracy(y_test, self.predict(X_test, use_effective_rules=False))]
-        indices_in_use = list(range(self.n_rules))
-        for _ in tqdm(range(self.n_rules)):
-            max_acc = 0
-            max_acc_index = -1
-            for rule_index in indices_in_use:
-                temp_indices_in_use = indices_in_use.copy()
-                temp_indices_in_use.remove(rule_index)
-                y_preds = self.predict_with_specific_rules(X_train, temp_indices_in_use)
-                current_acc = calculate_accuracy(y_train, y_preds)
-                if current_acc > max_acc:
-                    max_acc = current_acc
-                    max_acc_index = rule_index
-            indices_in_use.remove(max_acc_index)
-            rules_indices_downward.insert(0, max_acc_index)
-            train_acc_downward.insert(0, max_acc)
-            test_acc_downward.insert(0, calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, indices_in_use)))
-
-        if verbose:
-            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
-            plt.figure(figsize=(10, 7))
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules+1)), train_acc_upward, label='Pruned rules Wrapper upward, train dataset', c='g')
-            plt.plot(list(range(self.n_rules+1)), train_acc_downward, label='Pruned rules Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset', c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), test_acc_downward, label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
-            plt.legend()
-            plt.xlabel("Rules")
-            plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
-            plt.savefig(os.path.join('Plots', f'Wrapper_{self.dataset_name}_{self.n_rules}.png'))
-            plt.show()
-        return
-
-    def filter_pruning_one_method(self, method, rule_feature_matrix, **kwargs):
-        from sklearn.feature_selection import SelectKBest
-        from tqdm import tqdm
-
-        train_acc = []
-        test_acc = []
-        for i in tqdm(range(len(self.rules)+1)):
-            selector = SelectKBest(method, k=i)
-
-            selector.fit(rule_feature_matrix, self.y)
-            selected_rules_bool = selector.get_support()
-            chosen_rules = []
-            for rule_index, rule_is_chosen in enumerate(selected_rules_bool):
-                if rule_is_chosen:
-                    chosen_rules.append(rule_index)
-
-
-            y_train_preds = self.predict_with_specific_rules(kwargs['x_tr'], chosen_rules)
-            y_test_preds = self.predict_with_specific_rules(kwargs['x_te'], chosen_rules)
-            train_acc.append(calculate_accuracy(kwargs['y_tr'], y_train_preds))
-            test_acc.append(calculate_accuracy(kwargs['y_te'], y_test_preds))
-        return train_acc, test_acc
-
-    def filter_pruning(self, rule_feature_matrix, verbose=True, **kwargs):
-        from sklearn.feature_selection import SelectKBest, chi2, f_classif, mutual_info_classif
-        import matplotlib.pyplot as plt
-        import os
-
-        print("\tChi 2:")
-        chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix, **kwargs)
-        print("\tAnova:")
-        anova_train_acc, anova_test_acc = self.filter_pruning_one_method(f_classif, rule_feature_matrix, **kwargs)
-        print("\tMutual Info:")
-        mutual_info_train_acc, mutual_info_test_acc = self.filter_pruning_one_method(mutual_info_classif, rule_feature_matrix, **kwargs)
-
-        if verbose:
-            plt.figure(figsize=(10, 7))
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules+1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset', c='g')
-            plt.plot(list(range(self.n_rules+1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset', c='y')
-            plt.plot(list(range(self.n_rules+1)), mutual_info_train_acc, label='Pruned rules Filter Mutual_Info, train dataset', c='k')
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset', c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset', c='y', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), mutual_info_test_acc, label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
-            plt.legend()
-            plt.xlabel("Rules")
-            plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
-            plt.savefig(os.path.join('Plots', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
-            plt.show()
-
-        return
+        print(
+            f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
