@@ -13,7 +13,7 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 10
+    n_rules = 100
     use_gradient = True
     save_history = True
     # save_history = False
@@ -22,8 +22,8 @@ if __name__ == "__main__":
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
-    dataset = 'apple'
-    # dataset = 'wine'
+    # dataset = 'apple'
+    dataset = 'wine'
 
     # regressor = 'LogisticRegressionL1'
     # regressor = 'LogisticRegressionL2'

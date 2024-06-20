@@ -13,7 +13,7 @@ from multiprocessing import Pool
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
-nu = 0.5
+nu = 1
 # nu = 0.8
 R = 5
 Rp = 1e-5
