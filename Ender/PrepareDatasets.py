@@ -52,3 +52,14 @@ def prepare_apple_classification_dataset():
     class_mapping = {'bad': 0, 'good': 1}
     y = np.array(map_classes(y, class_mapping))
     return X, y
+
+
+def prepare_bank_classification_dataset():
+    data = pd.read_csv(os.path.join(DATA_PATH, "bank-additional-full.csv"), sep=';')
+
+    decision_attribute = "y"
+    X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
+    X = pd.get_dummies(X)
+    class_mapping = {'no': 0, 'yes': 1}
+    y = np.array(map_classes(y, class_mapping))
+    return X, y

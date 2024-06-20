@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 
 from EnderClassifier import EnderClassifier
-from PrepareDatasets import prepare_wine_classification_dataset, prepare_apple_classification_dataset, prepare_apple_small_classification_dataset, prepare_smallest_classification_dataset
+from PrepareDatasets import prepare_wine_classification_dataset, prepare_apple_classification_dataset, prepare_bank_classification_dataset
 from CalculateMetrics import calculate_all_metrics
 from VisualiseHistory import visualise_history
 import numpy as np
@@ -24,6 +24,7 @@ if __name__ == "__main__":
     TRAIN_NEW = True
     dataset = 'apple'
     # dataset = 'wine'
+    dataset = 'bank'
 
     # regressor = 'LogisticRegressionL1'
     # regressor = 'LogisticRegressionL2'
@@ -31,10 +32,10 @@ if __name__ == "__main__":
 
     if dataset == 'wine':
         X, y = prepare_wine_classification_dataset()
-    # X, y = prepare_apple_small_classification_dataset()
     elif dataset == 'apple':
         X, y = prepare_apple_classification_dataset()
-    # X, y = prepare_smallest_classification_dataset()
+    elif dataset == 'bank':
+        X, y = prepare_bank_classification_dataset()
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
