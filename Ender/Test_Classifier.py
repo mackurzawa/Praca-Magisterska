@@ -13,7 +13,7 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 100
+    n_rules = 10
     use_gradient = True
     save_history = True
     # save_history = False

@@ -708,47 +708,69 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         return
 
     def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
-        from sklearn.linear_model import Lasso
-        from sklearn.linear_model import Ridge
         from sklearn.linear_model import LogisticRegression
-        from sklearn.linear_model import lasso_path
-        from sklearn.linear_model import lars_path
-        from sklearn.multioutput import MultiOutputRegressor
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
         y_train = kwargs['y_tr']
         y_test = kwargs['y_te']
 
-        regressor = 'LarsPath'
-        alpha = 0.1
-        if regressor == 'MultiOutputRidge':
-            pruning_model = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
-        elif regressor == 'LogisticRegressorL1':
-            pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=alpha)
-        elif regressor == 'LogisticRegressorL2':
-            pruning_model = LogisticRegression(multi_class='auto', penalty='l2', C=alpha)
-        elif regressor == "LarsPath":
-            from matplotlib import pyplot as plt
-            import os
-            # Coefs is the matrix n_rules X alphas
-            # lars = False
-            lars = True
-            # positive = False
-            positive = False
-            if not positive and lars:
-                _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(y_train),
-                                        method="lasso", eps=1, verbose=True)
-            # elif positive and lars:
-            #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y),
-            #                             method="lasso", eps=1, verbose=True, positive=True)
-            # # Same as first condition
-            # elif not positive and lars:
-            #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), method="lar",
-            #                             eps=1, verbose=True)
-            # if not positive and not lars:
-            #     _, _, coefs = lasso_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), eps=1,
-            #                              verbose=True)
+        from matplotlib import pyplot as plt
+        import os
+
+        alphas = [1.5**x for x in range(-20, 1)]
+        train_acc = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        test_acc = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        active_rule_number = [0]
+        for alpha in alphas:
+            pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha)
+            # pruning_model = LogisticRegression(multi_class='auto', penalty='l2', solver='saga', C=alpha)
+            pruning_model.fit(rule_feature_matrix_train, y_train)
+
+            print(alpha)
+            print(pruning_model.coef_.T)
+            print(np.sum(pruning_model.coef_, axis=0))
+            print()
+
+            y_train_preds = pruning_model.predict(rule_feature_matrix_train)
+            y_test_preds = pruning_model.predict(rule_feature_matrix_test)
+
+            current_train_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
+            current_test_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
+
+            train_acc.append(current_train_acc)
+            test_acc.append(current_test_acc)
+
+            coefs = pruning_model.coef_
+            coefs = np.abs(coefs)
+            coefs[(coefs > -0.01) & (coefs < 0.01)] = 0
+            active_rule_number.append(np.count_nonzero(np.sum(coefs, axis=0)))
+            print(y_train_preds)
+            print(y_test_preds)
+
+        alphas = [0] + alphas
+        fig, ax = plt.subplots(1, 3, figsize=(21, 7))
+        ax[0].set_title("Regularization (C) vs rule number")
+        ax[0].plot(alphas, active_rule_number)
+        ax[0].set_xscale('log')
+        ###
+        ax[1].set_title('Regularization (C) vs accuracy')
+        ax[1].plot(alphas, train_acc, label='Train accuracy')
+        ax[1].plot(alphas, test_acc, label='Test accuracy')
+        ax[1].set_xscale('log')
+        ax[1].legend()
+        ###
+        ax[2].set_title("Rule number vs accuracy")
+        ax[2].plot(range(self.n_rules + 1), self.history['accuracy'], label='Old rules, Train dataset', c='b')
+        ax[2].plot(range(self.n_rules + 1), self.history['accuracy_test'], label='Old rules, Test dataset', c='b', linestyle='dashed')
+        ax[2].plot(active_rule_number, train_acc, label='New rules, Train dataset', c='r')
+        ax[2].plot(active_rule_number, test_acc, label='New rules, Test dataset', c='r', linestyle='dashed')
+        ax[2].scatter(active_rule_number, train_acc, c='r')
+        ax[2].scatter(active_rule_number, test_acc, c='r')
+        ax[2].legend()
+        plt.show()
+        raise
+        if False:
 
             lars_how_many_rules = 1
             lars_verbose = True
@@ -867,6 +889,169 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
         print(
             f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
+
+
+
+    # def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
+    #     from sklearn.linear_model import Lasso
+    #     from sklearn.linear_model import Ridge
+    #     from sklearn.linear_model import LogisticRegression
+    #     from sklearn.linear_model import lasso_path
+    #     from sklearn.linear_model import lars_path
+    #     from sklearn.multioutput import MultiOutputRegressor
+    #
+    #     X_train = kwargs['x_tr']
+    #     X_test = kwargs['x_te']
+    #     y_train = kwargs['y_tr']
+    #     y_test = kwargs['y_te']
+    #
+    #     regressor = 'LarsPath'
+    #     alpha = 0.1
+    #     if regressor == 'MultiOutputRidge':
+    #         pruning_model = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
+    #     elif regressor == 'LogisticRegressorL1':
+    #         pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=alpha)
+    #     elif regressor == 'LogisticRegressorL2':
+    #         pruning_model = LogisticRegression(multi_class='auto', penalty='l2', C=alpha)
+    #     elif regressor == "LarsPath":
+    #         from matplotlib import pyplot as plt
+    #         import os
+    #         # Coefs is the matrix n_rules X alphas
+    #         # lars = False
+    #         lars = True
+    #         # positive = False
+    #         positive = False
+    #         if not positive and lars:
+    #             _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(y_train),
+    #                                     method="lasso", eps=1, verbose=True)
+    #         # elif positive and lars:
+    #         #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y),
+    #         #                             method="lasso", eps=1, verbose=True, positive=True)
+    #         # # Same as first condition
+    #         # elif not positive and lars:
+    #         #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), method="lar",
+    #         #                             eps=1, verbose=True)
+    #         # if not positive and not lars:
+    #         #     _, _, coefs = lasso_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), eps=1,
+    #         #                              verbose=True)
+    #
+    #         lars_how_many_rules = 1
+    #         lars_verbose = True
+    #         lars_show_accuracy_graph = True
+    #         lars_show_path = True
+    #
+    #         train_acc = []
+    #         results_train = np.array(rule_feature_matrix_train) @ coefs
+    #         results_train[results_train > 0.5] = 1
+    #         results_train[results_train <= 0.5] = 0
+    #         for y_train_preds in results_train.T:
+    #             current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
+    #             train_acc.append(current_acc)
+    #
+    #         test_acc = []
+    #         results_test = np.array(rule_feature_matrix_test) @ coefs
+    #         threshold = 0.5
+    #         results_test[results_test > threshold] = 1
+    #         results_test[results_test <= threshold] = 0
+    #         for y_test_preds in results_test.T:
+    #             current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
+    #             test_acc.append(current_acc)
+    #         x_acc_new = list(range(len(results_train[0])))
+    #
+    #         # print(results[:5])
+    #         # for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
+    #         #     # self.effective_rules = []
+    #         #     effective_rule_indices = np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]
+    #         #     if len(effective_rule_indices) == lars_how_many_rules:
+    #         #         self.effective_rules = [self.rules[i] for i in effective_rule_indices]
+    #         #
+    #         #     y_train_preds = self.predict_with_specific_rules(x_tr, rule_indices=effective_rule_indices)
+    #         #     y_train_preds =
+    #         #     y_test_preds = self.predict_with_specific_rules(x_te, rule_indices=effective_rule_indices)
+    #         #     final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
+    #         #     acc_new.append(final_metrics['accuracy_train'])
+    #         #     x_acc_new.append((len(effective_rule_indices)))
+    #         #
+    #         #     if lars_verbose:
+    #         #         print(f'Ile ma niezerową wartość w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step),
+    #         #               np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
+    #         #         print(final_metrics)
+    #         #         print()
+    #
+    #         if lars_show_accuracy_graph:
+    #             plt.figure(figsize=(10, 7))
+    #             plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'], label='Old rules, train dataset', c='b')
+    #             plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'], label='Old rules, test dataset', linestyle='dashed', c='b')
+    #             plt.plot(x_acc_new, train_acc, label='Pruned rules, Embedded, train dataset', c='r')
+    #             plt.plot(x_acc_new, test_acc, label='Pruned rules, Embedded, test dataset', linestyle='dashed', c='r')
+    #
+    #             plt.grid()
+    #             plt.ylabel("Accuracy")
+    #             plt.xlabel("Rules")
+    #             plt.title("Accuracy vs no. rules")
+    #             plt.legend()
+    #             plt.savefig(os.path.join('Plots',
+    #                                      'pruning',
+    #                                      'Embedded',
+    #                                      f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
+    #             plt.show()
+    #         if lars_show_path:
+    #             xx = np.sum(np.abs(coefs.T), axis=1)
+    #             xx /= xx[-1]
+    #
+    #             plt.figure(figsize=(10, 7))
+    #             plt.plot(xx, coefs.T)
+    #             ymin, ymax = plt.ylim()
+    #             # plt.vlines(xx, ymin, ymax, linestyle="dashed")
+    #             plt.xlabel("|coef| / max|coef|")
+    #             plt.ylabel("Coefficients")
+    #             plt.title("LASSO Path")
+    #             plt.axis("tight")
+    #             plt.savefig(
+    #                 os.path.join('Plots',
+    #                              'pruning',
+    #                              'Embedded',
+    #                              f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
+    #             plt.show()
+    #         return
+    #     else:
+    #         raise Exception("Choose right regressor for pruning!")
+    #     # pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=3.5*10e-3)
+    #
+    #     pruning_model.fit(rule_feature_matrix, self.y)
+    #     # print('koef')
+    #     # print(pruning_model.coef_)
+    #
+    #     # mean_abs_coef = np.sum(np.abs(pruning_model.coef_), axis=0)
+    #     # # Indeksy cech posortowane według średniej wartości bezwzględnej wag
+    #     # sorted_feature_indices = np.argsort(mean_abs_coef)[::-1]
+    #     # # Wyświetlanie wyników
+    #     # print("Najważniejsze cechy wejściowe (posortowane według średniej wartości bezwzględnej wag):")
+    #     # for idx in sorted_feature_indices:
+    #     #     print(f"Cecha {idx}: {mean_abs_coef[idx]}")
+    #
+    #     weights = np.sum(np.abs(pruning_model.coef_), axis=0)
+    #     # weights = np.absolute(weights)
+    #     # print(multioutput_regressor.estimators_[0].coef_[0])
+    #     # print(weights)
+    #     # consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
+    #     # print(consolidated_weights)
+    #
+    #     # effective_rule_indices = np.argsort(consolidated_weights)[::-1]
+    #     effective_rule_indices = np.argsort(weights)[::-1]
+    #     # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
+    #     # effective_rule_indices += 1
+    #
+    #     self.effective_rules = []
+    #     for rule_index in effective_rule_indices:
+    #         if abs(weights[rule_index]) > 10e-5:
+    #             self.effective_rules.append(self.rules[rule_index])
+    #     # print(self.effective_rules)
+    #
+    #     # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
+    #     # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
+    #     print(
+    #         f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
 
     def __getstate__(self):
         self_dict = self.__dict__.copy()
