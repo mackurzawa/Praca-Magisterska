@@ -1,6 +1,7 @@
 import math
-
+import random
 import numpy as np
+from collections import Counter
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.metrics import accuracy_score
@@ -13,7 +14,8 @@ from multiprocessing import Pool
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
-nu = 0.1
+nu = .5
+sampling = .5
 # nu = 0.8
 R = 5
 Rp = 1e-5
@@ -29,6 +31,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.prune = prune
         self.use_gradient = use_gradient
         self.nu = nu
+        self.sampling = sampling
 
         self.optimized_searching_for_cut = optimized_searching_for_cut
         self.save_history = save_history
@@ -79,7 +82,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             print('####################################################################################')
             print(f"Rule: {i_rule + 1}")
             self.covered_instances = [1 for _ in range(len(X))]
-
+            self.covered_instances = self.resampling()
             rule = self.create_rule()
 
             if rule:
@@ -89,6 +92,42 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     self.save_epoch()
 
         # return rules
+
+    def resampling(self):
+        count = Counter(self.y)
+        total = len(self.y)
+        no_examples_to_use = math.ceil(len(self.y) * self.sampling)
+
+        ones_allocation = {key: round((value / total) * no_examples_to_use) for key, value in count.items()}
+
+        # Korekcja liczby jedynek, aby suma była równa B
+        allocated_ones = sum(ones_allocation.values())
+        difference = no_examples_to_use - allocated_ones
+        keys = list(ones_allocation.keys())
+
+        while difference != 0:
+            for key in keys:
+                if difference == 0:
+                    break
+                if difference > 0:
+                    ones_allocation[key] += 1
+                    difference -= 1
+                else:
+                    if ones_allocation[key] > 0:
+                        ones_allocation[key] -= 1
+                        difference += 1
+
+        # Tworzenie wynikowej listy z zerami
+        result = [0] * len(self.y)
+
+        # Rozmieszczenie jedynek zgodnie z obliczoną alokacją
+        for key, num_ones in ones_allocation.items():
+            indices = [i for i, x in enumerate(self.y) if x == key]
+            selected_indices = random.sample(indices, num_ones)
+            for index in selected_indices:
+                result[index] = 1
+        return result
+
 
     def create_rule(self):
         self.initialize_for_rule()
@@ -769,7 +808,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         plt.savefig(os.path.join('Plots',
             'pruning',
             'Embedded',
-            f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}.png'))
+            f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png'))
 
         plt.show()
         raise
