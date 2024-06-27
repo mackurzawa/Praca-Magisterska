@@ -13,8 +13,9 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 100
+    n_rules = 25
     use_gradient = True
+    use_gradient = False
     save_history = True
     # save_history = False
     # optimized_searching_for_cut = True

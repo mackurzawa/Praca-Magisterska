@@ -13,7 +13,7 @@ from multiprocessing import Pool
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
-nu = 1
+nu = 0.1
 # nu = 0.8
 R = 5
 Rp = 1e-5
@@ -727,10 +727,10 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             # pruning_model = LogisticRegression(multi_class='auto', penalty='l2', solver='saga', C=alpha)
             pruning_model.fit(rule_feature_matrix_train, y_train)
 
-            print(alpha)
-            print(pruning_model.coef_.T)
-            print(np.sum(pruning_model.coef_, axis=0))
-            print()
+            # print(alpha)
+            # print(pruning_model.coef_.T)
+            # print(np.sum(pruning_model.coef_, axis=0))
+            # print()
 
             y_train_preds = pruning_model.predict(rule_feature_matrix_train)
             y_test_preds = pruning_model.predict(rule_feature_matrix_test)
@@ -745,8 +745,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             coefs = np.abs(coefs)
             coefs[(coefs > -0.01) & (coefs < 0.01)] = 0
             active_rule_number.append(np.count_nonzero(np.sum(coefs, axis=0)))
-            print(y_train_preds)
-            print(y_test_preds)
 
         alphas = [0] + alphas
         fig, ax = plt.subplots(1, 3, figsize=(21, 7))
@@ -768,6 +766,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         ax[2].scatter(active_rule_number, train_acc, c='r')
         ax[2].scatter(active_rule_number, test_acc, c='r')
         ax[2].legend()
+        plt.savefig(os.path.join('Plots',
+            'pruning',
+            'Embedded',
+            f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}.png'))
+
         plt.show()
         raise
         if False:
