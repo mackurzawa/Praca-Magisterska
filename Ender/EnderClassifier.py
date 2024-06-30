@@ -14,8 +14,8 @@ from multiprocessing import Pool
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
-nu = .5
-sampling = .5
+nu = 1
+sampling = 1
 # nu = 0.8
 R = 5
 Rp = 1e-5
@@ -762,7 +762,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         test_acc = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
         active_rule_number = [0]
         for alpha in alphas:
-            pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha)
+            pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha, max_iter=10000)
             # pruning_model = LogisticRegression(multi_class='auto', penalty='l2', solver='saga', C=alpha)
             pruning_model.fit(rule_feature_matrix_train, y_train)
 
@@ -789,6 +789,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         fig, ax = plt.subplots(1, 3, figsize=(21, 7))
         ax[0].set_title("Regularization (C) vs rule number")
         ax[0].plot(alphas, active_rule_number)
+        ax[0].scatter(alphas, active_rule_number)
         ax[0].set_xscale('log')
         ###
         ax[1].set_title('Regularization (C) vs accuracy')

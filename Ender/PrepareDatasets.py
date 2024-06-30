@@ -63,3 +63,22 @@ def prepare_bank_classification_dataset():
     class_mapping = {'no': 0, 'yes': 1}
     y = np.array(map_classes(y, class_mapping))
     return X, y
+
+def prepare_liver_disorder_classification_dataset():
+    data = pd.read_csv(os.path.join(DATA_PATH, "Classification LiverDisorders.csv"), sep=',')
+
+    decision_attribute = "drinks"
+    X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
+    X = pd.get_dummies(X)
+    y = np.array(y)
+    unique = np.unique(y)
+    y_copy = y.copy()
+    for i_un, un in enumerate(unique):
+        y[y_copy == un] = i_un
+    y = y.astype(np.int8)
+    print(y, y.dtype)
+    return X, y
+    raise
+    class_mapping = {'no': 0, 'yes': 1}
+    y = np.array(map_classes(y, class_mapping))
+    return X, y

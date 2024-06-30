@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 
 from EnderClassifier import EnderClassifier
-from PrepareDatasets import prepare_wine_classification_dataset, prepare_apple_classification_dataset, prepare_bank_classification_dataset
+from PrepareDatasets import prepare_wine_classification_dataset, prepare_apple_classification_dataset, prepare_bank_classification_dataset, prepare_liver_disorder_classification_dataset
 from CalculateMetrics import calculate_all_metrics
 from VisualiseHistory import visualise_history
 import numpy as np
@@ -13,7 +13,7 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 50
+    n_rules = 500
     use_gradient = True
     use_gradient = False
     save_history = True
@@ -26,6 +26,7 @@ if __name__ == "__main__":
     dataset = 'apple'
     # dataset = 'wine'
     # dataset = 'bank'
+    dataset = 'liver'
 
     # regressor = 'LogisticRegressionL1'
     # regressor = 'LogisticRegressionL2'
@@ -37,8 +38,10 @@ if __name__ == "__main__":
         X, y = prepare_apple_classification_dataset()
     elif dataset == 'bank':
         X, y = prepare_bank_classification_dataset()
+    elif dataset == 'liver':
+        X, y = prepare_liver_disorder_classification_dataset()
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
 
     if TRAIN_NEW:
