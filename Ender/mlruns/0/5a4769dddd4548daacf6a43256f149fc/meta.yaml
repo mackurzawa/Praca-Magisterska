@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/5a4769dddd4548daacf6a43256f149fc/artifacts
+end_time: 1720044113039
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 5a4769dddd4548daacf6a43256f149fc
+run_name: languid-slug-633
+run_uuid: 5a4769dddd4548daacf6a43256f149fc
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720044112251
+status: 4
+tags: []
+user_id: Maciej

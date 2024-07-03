@@ -74,7 +74,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.rules = []
         self.update_value_of_f(self.default_rule)
         print("Default rule:", self.default_rule)
-        for i_rule in range(self.n_rules):
+        i_rule = 0
+        while i_rule < self.n_rules:
+        # for i_rule in range(self.n_rules):
             print('####################################################################################')
             print(f"Rule: {i_rule + 1}")
             self.covered_instances = [1 for _ in range(len(X))]
@@ -84,6 +86,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             if rule:
                 self.update_value_of_f(rule.decision)
                 self.rules.append(rule)
+                i_rule += 1
 
     def resampling(self):
         count = Counter(self.y)
@@ -120,7 +123,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 result[index] = 1
         return result
 
-
     def create_rule(self):
         self.initialize_for_rule()
         rule = Rule()
@@ -148,6 +150,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         if best_cut.exists:
 
             decision = self.compute_decision()
+            if decision is None:
+             return None
+
             decision = [dec * self.nu for dec in decision]
 
             rule.decision = decision
@@ -349,11 +354,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     gradient -= INSTANCE_WEIGHT * self.probability[i][self.max_k]
                     hessian += INSTANCE_WEIGHT * (Rp + self.probability[i][self.max_k] * (1 - self.probability[i][self.max_k]))
 
+            print(gradient)
             if gradient < 0:
                 return None
 
             alpha_nr = gradient / hessian
-
             decision = [- alpha_nr / self.num_classes for _ in range(self.num_classes)]
             decision[self.max_k] = alpha_nr * (self.num_classes - 1) / self.num_classes
             return decision
@@ -743,6 +748,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
     def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.linear_model import LogisticRegression
+        from tqdm import tqdm
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -756,7 +762,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         train_acc = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
         test_acc = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
         active_rule_number = [0]
-        for alpha in alphas:
+        for alpha in tqdm(alphas):
             pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha, max_iter=10000)
             # pruning_model = LogisticRegression(multi_class='auto', penalty='l2', solver='saga', C=alpha)
             pruning_model.fit(rule_feature_matrix_train, y_train)

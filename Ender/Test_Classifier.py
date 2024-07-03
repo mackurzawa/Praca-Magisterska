@@ -1,6 +1,7 @@
 import pickle
 from time import time
 import os
+import random
 
 import mlflow
 from sklearn.model_selection import train_test_split
@@ -15,7 +16,7 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 250
+    n_rules = 500
     # use_gradient = True
     use_gradient = False
     # optimized_searching_for_cut = True
@@ -26,7 +27,11 @@ if __name__ == "__main__":
     # dataset = 'apple'
     # dataset = 'wine'
     # dataset = 'bank'
-    dataset = 'liver'
+    ##########
+    # dataset = 'haberman'
+    # dataset = 'liver'
+    dataset = 'breast-c'
+
     nu = .5
     sampling = .5
 
@@ -38,19 +43,21 @@ if __name__ == "__main__":
         "Shrinkage. nu": nu,
         "Sampling. percentage": sampling,
     }
-
+    random.seed(42)
     with mlflow.start_run() as run:
         mlflow.log_params(params)
 
         X, y = prepare_dataset(dataset)
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+        print(X_train, X_test, y_train, y_test)
 
         if TRAIN_NEW:
             ender = EnderClassifier(n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, prune=prune, nu=nu, sampling=sampling)
             ender.pool = Pool()
             time_started = time()
-            ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
+            # ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
+            ender.fit(X, y, X_test=X_test, y_test=y_test)
             time_elapsed = round(time() - time_started, 2)
             mlflow.log_metric("Training time", time_elapsed)
             print(f"Rules created in {time_elapsed} s.")

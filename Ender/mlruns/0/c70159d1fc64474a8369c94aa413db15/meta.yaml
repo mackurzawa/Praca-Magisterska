@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/c70159d1fc64474a8369c94aa413db15/artifacts
+end_time: 1720044511053
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: c70159d1fc64474a8369c94aa413db15
+run_name: unleashed-flea-928
+run_uuid: c70159d1fc64474a8369c94aa413db15
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720044509699
+status: 4
+tags: []
+user_id: Maciej

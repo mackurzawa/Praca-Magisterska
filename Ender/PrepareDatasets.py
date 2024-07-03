@@ -15,6 +15,10 @@ def prepare_dataset(dataset):
         X, y = prepare_bank_classification_dataset()
     elif dataset == 'liver':
         X, y = prepare_liver_disorder_classification_dataset()
+    elif dataset == 'haberman':
+        X, y = prepare_liver_disorder_classification_dataset()
+    elif dataset == 'breast-c':
+        X, y = prepare_breast_c_classification_dataset()
     else:
         raise ValueError("No dataset prepared with this name")
 
@@ -82,6 +86,36 @@ def prepare_bank_classification_dataset():
     return X, y
 
 
+def prepare_haberman_classification_dataset():
+    data = pd.read_csv(os.path.join(DATA_PATH, "Classification Haberman.csv"), sep=',')
+
+    decision_attribute = 3
+    X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
+    X = pd.get_dummies(X)
+    y = np.array(y)
+    unique = np.unique(y)
+    y_copy = y.copy()
+    for i_un, un in enumerate(unique):
+        y[y_copy == un] = i_un
+    y = y.astype(np.int8)
+    return X, y
+
+
+def prepare_breast_c_classification_dataset():
+    data = pd.read_csv(os.path.join(DATA_PATH, "Classification Breast-C.csv"), sep=',')
+
+    decision_attribute = "Class"
+    X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
+    X = pd.get_dummies(X)
+    y = np.array(y)
+    unique = np.unique(y)
+    y_copy = y.copy()
+    for i_un, un in enumerate(unique):
+        y[y_copy == un] = i_un
+    y = y.astype(np.int8)
+    return X, y
+
+
 def prepare_liver_disorder_classification_dataset():
     data = pd.read_csv(os.path.join(DATA_PATH, "Classification LiverDisorders.csv"), sep=',')
 
@@ -94,9 +128,6 @@ def prepare_liver_disorder_classification_dataset():
     for i_un, un in enumerate(unique):
         y[y_copy == un] = i_un
     y = y.astype(np.int8)
-    print(y, y.dtype)
     return X, y
-    raise
-    class_mapping = {'no': 0, 'yes': 1}
-    y = np.array(map_classes(y, class_mapping))
-    return X, y
+
+
