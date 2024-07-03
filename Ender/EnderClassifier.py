@@ -1,6 +1,7 @@
 import math
 import random
 import numpy as np
+from time import time
 from collections import Counter
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
@@ -14,8 +15,6 @@ from multiprocessing import Pool
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
-nu = 1
-sampling = 1
 # nu = 0.8
 R = 5
 Rp = 1e-5
@@ -24,7 +23,7 @@ Rp = 1e-5
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     pool = None
 
-    def __init__(self, n_rules=100, use_gradient=True, save_history=True, optimized_searching_for_cut=True, prune=False):
+    def __init__(self, n_rules=100, use_gradient=True, optimized_searching_for_cut=True, prune=False, nu=1, sampling=1):
         self.n_rules = n_rules
         self.rules = []
 
@@ -34,7 +33,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.sampling = sampling
 
         self.optimized_searching_for_cut = optimized_searching_for_cut
-        self.save_history = save_history
         self.history = {'accuracy': [],
                         'mean_absolute_error': [],
                         'accuracy_test': [],
@@ -66,7 +64,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         self.is_fitted_ = True
 
-        return self.history if self.save_history else None
+        return None
 
     def create_rules(self, X):
         self.create_inverted_list(X)
@@ -74,8 +72,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         self.default_rule = self.create_default_rule()
         self.rules = []
-        if self.save_history:
-            self.save_epoch()
         self.update_value_of_f(self.default_rule)
         print("Default rule:", self.default_rule)
         for i_rule in range(self.n_rules):
@@ -88,10 +84,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             if rule:
                 self.update_value_of_f(rule.decision)
                 self.rules.append(rule)
-                if self.save_history:
-                    self.save_epoch()
-
-        # return rules
 
     def resampling(self):
         count = Counter(self.y)
@@ -342,7 +334,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.initialize_for_rule()
         decision = self.compute_decision()
         for i in range(self.num_classes):
-            decision[i] *= nu
+            decision[i] *= self.nu
         return decision
 
     def compute_decision(self):
@@ -473,18 +465,21 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         return accuracy
 
-    def save_epoch(self):
-        y_preds = self.predict(self.X)
-        metrics = calculate_all_metrics(self.y, y_preds)
-        self.history['accuracy'].append(metrics['accuracy'])
-        self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
+    def evaluate_all_rules(self):
+        from tqdm import tqdm
+        for i_rule in tqdm(range(self.n_rules + 1)):
+            y_preds = self.predict_with_specific_rules(self.X, range(i_rule))
+            metrics = calculate_all_metrics(self.y, y_preds)
+            self.history['accuracy'].append(metrics['accuracy'])
+            self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
 
-        if self.X_test is not None and self.y_test is not None:
-            from multiprocessing import Pool
-            y_test_preds = self.predict(self.X_test)
-            metrics_test = calculate_all_metrics(self.y_test, y_test_preds)
-            self.history['accuracy_test'].append(metrics_test['accuracy'])
-            self.history['mean_absolute_error_test'].append(metrics_test['mean_absolute_error'])
+            if self.X_test is not None and self.y_test is not None:
+                y_test_preds = self.predict_with_specific_rules(self.X_test, range(i_rule))
+                metrics_test = calculate_all_metrics(self.y_test, y_test_preds)
+                self.history['accuracy_test'].append(metrics_test['accuracy'])
+                self.history['mean_absolute_error_test'].append(metrics_test['mean_absolute_error'])
+
+
 
     def prune_rules(self, regressor, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False, lars_show_accuracy_graph=False, lars_verbose=False, **kwargs):
         # self.prune = True
@@ -812,6 +807,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png'))
 
         plt.show()
+        return
         raise
         if False:
 

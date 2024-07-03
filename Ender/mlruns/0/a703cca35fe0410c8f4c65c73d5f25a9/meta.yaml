@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/a703cca35fe0410c8f4c65c73d5f25a9/artifacts
+deleted_time: 1720043571557
+end_time: 1720042567933
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: a703cca35fe0410c8f4c65c73d5f25a9
+run_name: adaptable-cat-584
+run_uuid: a703cca35fe0410c8f4c65c73d5f25a9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720042557976
+status: 3
+tags: []
+user_id: Maciej

@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/8c7e5247d4884d5ea64580b211778dbd/artifacts
+deleted_time: 1720043571584
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: 8c7e5247d4884d5ea64580b211778dbd
+run_name: skittish-mouse-793
+run_uuid: 8c7e5247d4884d5ea64580b211778dbd
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720040703225
+status: 1
+tags: []
+user_id: Maciej
