@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 
 from EnderClassifier import EnderClassifier
-from PrepareDatasets import prepare_wine_classification_dataset, prepare_apple_classification_dataset, prepare_bank_classification_dataset, prepare_liver_disorder_classification_dataset
+from PrepareDatasets import prepare_dataset
 from CalculateMetrics import calculate_all_metrics
 from VisualiseHistory import visualise_history
 import numpy as np
@@ -32,17 +32,9 @@ if __name__ == "__main__":
     # regressor = 'LogisticRegressionL2'
     # regressor = 'MultiOutputRidge'
 
-    if dataset == 'wine':
-        X, y = prepare_wine_classification_dataset()
-    elif dataset == 'apple':
-        X, y = prepare_apple_classification_dataset()
-    elif dataset == 'bank':
-        X, y = prepare_bank_classification_dataset()
-    elif dataset == 'liver':
-        X, y = prepare_liver_disorder_classification_dataset()
+    X, y = prepare_dataset(dataset)
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
-
 
     if TRAIN_NEW:
         ender = EnderClassifier(n_rules=n_rules, use_gradient=use_gradient, save_history=save_history, optimized_searching_for_cut=optimized_searching_for_cut, prune=prune)
@@ -59,7 +51,6 @@ if __name__ == "__main__":
         # ender.prune_rules(regressor='LogisticRegressionL1', alpha=0.005)
     ender.dataset_name = dataset
 
-
     y_train_preds = ender.predict(X_train, use_effective_rules=False)
     y_test_preds = ender.predict(X_test, use_effective_rules=False)
     final_metrics_train = calculate_all_metrics(y_train, y_train_preds)
@@ -69,9 +60,9 @@ if __name__ == "__main__":
 
     # for pruning_regressor, alpha in [('LarsPath', 1), ('LogisticRegressorL1', 0.005), ('LogisticRegressorL2', 10e-7)]:
     pruning_methods = [('LarsPath', 1)]
-    pruning_methods = [('MyIdeaWrapper', None)] # Potentially 'accuracy'
-    pruning_methods = [('Wrapper', None)] # Potentially 'accuracy'
-    pruning_methods = [('Filter', None)] # Potentially 'accuracy'
+    pruning_methods = [('MyIdeaWrapper', None)]  # Potentially 'accuracy'
+    pruning_methods = [('Wrapper', None)]  # Potentially 'accuracy'
+    pruning_methods = [('Filter', None)]  # Potentially 'accuracy'
     pruning_methods = [('Filter', None), ('MyIdeaWrapper', None), ('Wrapper', None)]
     pruning_methods = [('Embedded', None)]
     for pruning_regressor, alpha in pruning_methods:

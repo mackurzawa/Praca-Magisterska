@@ -6,9 +6,25 @@ DATA_PATH = os.path.join('..', 'data')
 TEST_DATA_PATH = os.path.join(DATA_PATH, 'test_data')
 
 
+def prepare_dataset(dataset):
+    if dataset == 'wine':
+        X, y = prepare_wine_classification_dataset()
+    elif dataset == 'apple':
+        X, y = prepare_apple_classification_dataset()
+    elif dataset == 'bank':
+        X, y = prepare_bank_classification_dataset()
+    elif dataset == 'liver':
+        X, y = prepare_liver_disorder_classification_dataset()
+    else:
+        raise ValueError("No dataset prepared with this name")
+
+    return X, y
+
+
 def map_classes(series, class_mapping):
     mapped_series = series.map(class_mapping)
     return mapped_series
+
 
 def prepare_smallest_classification_dataset():
     data = pd.read_csv(os.path.join(DATA_PATH, "test_data\\3 ex 2 cl.csv"))
@@ -19,6 +35,7 @@ def prepare_smallest_classification_dataset():
     class_mapping = {'klasa1': 0, 'klasa2': 1}
     y = np.array(map_classes(y, class_mapping))
     return X, y
+
 
 def prepare_wine_classification_dataset():
     data = pd.read_csv(os.path.join(DATA_PATH, "Classification Wine - 3 cl. 13 cols. 178 ex.csv"))
@@ -63,6 +80,7 @@ def prepare_bank_classification_dataset():
     class_mapping = {'no': 0, 'yes': 1}
     y = np.array(map_classes(y, class_mapping))
     return X, y
+
 
 def prepare_liver_disorder_classification_dataset():
     data = pd.read_csv(os.path.join(DATA_PATH, "Classification LiverDisorders.csv"), sep=',')
