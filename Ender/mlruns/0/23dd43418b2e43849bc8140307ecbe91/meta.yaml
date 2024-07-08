@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/23dd43418b2e43849bc8140307ecbe91/artifacts
+deleted_time: 1720123390117
 end_time: 1720044534814
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 23dd43418b2e43849bc8140307ecbe91
 run_name: upset-donkey-963
 run_uuid: 23dd43418b2e43849bc8140307ecbe91

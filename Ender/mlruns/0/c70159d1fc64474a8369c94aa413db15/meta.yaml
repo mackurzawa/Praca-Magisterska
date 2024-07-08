@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/c70159d1fc64474a8369c94aa413db15/artifacts
+deleted_time: 1720123390096
 end_time: 1720044511053
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: c70159d1fc64474a8369c94aa413db15
 run_name: unleashed-flea-928
 run_uuid: c70159d1fc64474a8369c94aa413db15

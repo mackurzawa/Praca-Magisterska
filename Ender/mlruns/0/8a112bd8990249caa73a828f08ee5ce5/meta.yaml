@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/8a112bd8990249caa73a828f08ee5ce5/artifacts
+deleted_time: 1720123390121
 end_time: 1720044527767
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 8a112bd8990249caa73a828f08ee5ce5
 run_name: angry-asp-771
 run_uuid: 8a112bd8990249caa73a828f08ee5ce5

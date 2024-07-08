@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/e313c350c6154e09968431e7556c5d3d/artifacts
+deleted_time: 1720123390122
 end_time: null
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: e313c350c6154e09968431e7556c5d3d
 run_name: whimsical-sloth-724
 run_uuid: e313c350c6154e09968431e7556c5d3d

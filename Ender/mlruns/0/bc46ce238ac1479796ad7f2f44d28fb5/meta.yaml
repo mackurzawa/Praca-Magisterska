@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/bc46ce238ac1479796ad7f2f44d28fb5/artifacts
+deleted_time: 1720123390044
 end_time: 1720039662607
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: bc46ce238ac1479796ad7f2f44d28fb5
 run_name: nervous-zebra-431
 run_uuid: bc46ce238ac1479796ad7f2f44d28fb5

@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/92ec0e1d5c5b4c33954b17090f99f2a6/artifacts
+deleted_time: 1720123390080
 end_time: null
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 92ec0e1d5c5b4c33954b17090f99f2a6
 run_name: resilient-quail-704
 run_uuid: 92ec0e1d5c5b4c33954b17090f99f2a6

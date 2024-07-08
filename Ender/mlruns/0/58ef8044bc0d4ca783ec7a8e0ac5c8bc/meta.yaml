@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/58ef8044bc0d4ca783ec7a8e0ac5c8bc/artifacts
+deleted_time: 1720123390080
 end_time: 1720044221340
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 58ef8044bc0d4ca783ec7a8e0ac5c8bc
 run_name: righteous-rat-539
 run_uuid: 58ef8044bc0d4ca783ec7a8e0ac5c8bc

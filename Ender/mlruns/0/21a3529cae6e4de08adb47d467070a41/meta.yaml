@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/21a3529cae6e4de08adb47d467070a41/artifacts
+deleted_time: 1720123390063
 end_time: 1720044101244
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 21a3529cae6e4de08adb47d467070a41
 run_name: intrigued-midge-704
 run_uuid: 21a3529cae6e4de08adb47d467070a41

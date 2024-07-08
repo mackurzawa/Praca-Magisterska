@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/a955a6c16d194377b5416026c76546f3/artifacts
+deleted_time: 1720123405417
 end_time: null
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: a955a6c16d194377b5416026c76546f3
 run_name: capable-auk-759
 run_uuid: a955a6c16d194377b5416026c76546f3

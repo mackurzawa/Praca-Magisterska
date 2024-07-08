@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/3f839c220abd4921b738d1ea477e137d/artifacts
+deleted_time: 1720123390045
 end_time: 1720039759304
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 3f839c220abd4921b738d1ea477e137d
 run_name: bemused-panda-701
 run_uuid: 3f839c220abd4921b738d1ea477e137d

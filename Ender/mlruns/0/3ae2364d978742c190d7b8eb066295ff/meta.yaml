@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/3ae2364d978742c190d7b8eb066295ff/artifacts
+deleted_time: 1720123390064
 end_time: 1720044108802
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 3ae2364d978742c190d7b8eb066295ff
 run_name: gaudy-sloth-557
 run_uuid: 3ae2364d978742c190d7b8eb066295ff

@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/c4131dbf540c41f98fbc33a40450a019/artifacts
+deleted_time: 1720123390082
 end_time: 1720044366929
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: c4131dbf540c41f98fbc33a40450a019
 run_name: amusing-bass-265
 run_uuid: c4131dbf540c41f98fbc33a40450a019

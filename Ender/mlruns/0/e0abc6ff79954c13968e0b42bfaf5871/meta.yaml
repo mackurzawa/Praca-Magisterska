@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/e0abc6ff79954c13968e0b42bfaf5871/artifacts
+deleted_time: 1720123390053
 end_time: 1720039798335
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: e0abc6ff79954c13968e0b42bfaf5871
 run_name: peaceful-newt-14
 run_uuid: e0abc6ff79954c13968e0b42bfaf5871

@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/6f553c174a084ed59da1fcb82175816a/artifacts
+deleted_time: 1720123390055
 end_time: 1720044003723
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 6f553c174a084ed59da1fcb82175816a
 run_name: gregarious-frog-587
 run_uuid: 6f553c174a084ed59da1fcb82175816a

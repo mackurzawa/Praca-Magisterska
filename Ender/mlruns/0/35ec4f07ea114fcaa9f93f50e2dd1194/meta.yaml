@@ -1,8 +1,9 @@
 artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/35ec4f07ea114fcaa9f93f50e2dd1194/artifacts
+deleted_time: 1720123390094
 end_time: 1720044328437
 entry_point_name: ''
 experiment_id: '0'
-lifecycle_stage: active
+lifecycle_stage: deleted
 run_id: 35ec4f07ea114fcaa9f93f50e2dd1194
 run_name: wise-colt-474
 run_uuid: 35ec4f07ea114fcaa9f93f50e2dd1194
