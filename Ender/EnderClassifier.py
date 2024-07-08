@@ -354,7 +354,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     gradient -= INSTANCE_WEIGHT * self.probability[i][self.max_k]
                     hessian += INSTANCE_WEIGHT * (Rp + self.probability[i][self.max_k] * (1 - self.probability[i][self.max_k]))
 
-            print(gradient)
             if gradient < 0:
                 return None
 
@@ -472,23 +471,32 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
     def evaluate_all_rules(self):
         from tqdm import tqdm
-        for i_rule in tqdm(range(self.n_rules + 1)):
-            y_preds = self.predict_with_specific_rules(self.X, range(i_rule))
-            metrics = calculate_all_metrics(self.y, y_preds)
+
+        predictions_train = np.array([self.default_rule for _ in range(len(self.X))])
+        metrics = calculate_all_metrics(self.y, predictions_train)
+        self.history['accuracy'] = [metrics['accuracy']]
+        self.history['mean_absolute_error'] = [metrics['mean_absolute_error']]
+        for i_rule in tqdm(range(self.n_rules)):
+            for i_x, x in enumerate(self.X):
+                predictions_train[i_x] += np.array(self.rules[i_rule].classify_instance(x))
+            metrics = calculate_all_metrics(self.y, predictions_train)
             self.history['accuracy'].append(metrics['accuracy'])
             self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
 
-            if self.X_test is not None and self.y_test is not None:
-                y_test_preds = self.predict_with_specific_rules(self.X_test, range(i_rule))
-                metrics_test = calculate_all_metrics(self.y_test, y_test_preds)
-                self.history['accuracy_test'].append(metrics_test['accuracy'])
-                self.history['mean_absolute_error_test'].append(metrics_test['mean_absolute_error'])
-
-
+        if self.X_test is not None and self.y_test is not None:
+            predictions_test = np.array([self.default_rule for _ in range(len(self.X_test))])
+            metrics = calculate_all_metrics(self.y_test, predictions_test)
+            self.history['accuracy_test'] = [metrics['accuracy']]
+            self.history['mean_absolute_error_test'] = [metrics['mean_absolute_error']]
+            for i_rule in tqdm(range(self.n_rules)):
+                for i_x, x in enumerate(self.X_test):
+                    predictions_test[i_x] += np.array(self.rules[i_rule].classify_instance(x))
+                metrics = calculate_all_metrics(self.y_test, predictions_test)
+                self.history['accuracy_test'].append(metrics['accuracy'])
+                self.history['mean_absolute_error_test'].append(metrics['mean_absolute_error'])
 
     def prune_rules(self, regressor, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False, lars_show_accuracy_graph=False, lars_verbose=False, **kwargs):
         # self.prune = True
-        print(type(kwargs['x_tr']))
         rule_feature_matrix_train = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in kwargs['x_tr'].to_numpy()]
         rule_feature_matrix_test = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in kwargs['x_te'].to_numpy()]
 
@@ -758,7 +766,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         from matplotlib import pyplot as plt
         import os
 
-        alphas = [1.5**x for x in range(-20, 1)]
+        alphas = [1.5**x for x in range(-20, 10)]
         train_acc = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
         test_acc = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
         active_rule_number = [0]
