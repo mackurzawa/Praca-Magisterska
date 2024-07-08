@@ -19,6 +19,8 @@ def prepare_dataset(dataset):
         X, y = prepare_liver_disorder_classification_dataset()
     elif dataset == 'breast-c':
         X, y = prepare_breast_c_classification_dataset()
+    elif dataset == 'spambase':
+        X, y = prepare_spambase_classification_dataset()
     else:
         raise ValueError("No dataset prepared with this name")
 
@@ -120,6 +122,21 @@ def prepare_liver_disorder_classification_dataset():
     data = pd.read_csv(os.path.join(DATA_PATH, "Classification LiverDisorders.csv"), sep=',')
 
     decision_attribute = "drinks"
+    X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
+    X = pd.get_dummies(X)
+    y = np.array(y)
+    unique = np.unique(y)
+    y_copy = y.copy()
+    for i_un, un in enumerate(unique):
+        y[y_copy == un] = i_un
+    y = y.astype(np.int8)
+    return X, y
+
+
+def prepare_spambase_classification_dataset():
+    data = pd.read_csv(os.path.join(DATA_PATH, "Classification SpamBase.csv"), sep=',')
+
+    decision_attribute = "y"
     X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
     X = pd.get_dummies(X)
     y = np.array(y)
