@@ -11,7 +11,6 @@ from EnderClassifier import EnderClassifier
 from PrepareDatasets import prepare_dataset
 from CalculateMetrics import calculate_all_metrics
 from VisualiseHistory import visualise_history
-import numpy as np
 from multiprocessing import Pool
 
 
@@ -30,8 +29,8 @@ if __name__ == "__main__":
     ##########
     # dataset = 'haberman'
     # dataset = 'liver'
-    # dataset = 'breast-c'
-    dataset = 'spambase'
+    dataset = 'breast-c'
+    # dataset = 'spambase'
 
     nu = .5
     sampling = .5
@@ -67,7 +66,6 @@ if __name__ == "__main__":
             mlflow.log_metric("Evaluation time", time_elapsed)
             print(f"Rules evaluated in {time_elapsed} s.")
 
-
             with open (os.path.join('models', f'model_{dataset}_{n_rules}.pkl'), 'wb') as f:
                 pickle.dump(ender, f, pickle.HIGHEST_PROTOCOL)
         else:
@@ -94,7 +92,14 @@ if __name__ == "__main__":
         pruning_methods = [('Filter', None)]  # Potentially 'accuracy'
         pruning_methods = [('Filter', None), ('MyIdeaWrapper', None), ('Wrapper', None)]
         pruning_methods = [('Embedded', None)]
-        for pruning_regressor, alpha in pruning_methods:
+
+        pruning_methods = {
+            'Filter': None,
+            'MyIdeaWrapper': None,
+            'Wrapper': None,
+            'Embedded': None,
+        }
+        for pruning_regressor, alpha in pruning_methods.items():
             print()
             print(pruning_regressor)
             ender.prune_rules(regressor=pruning_regressor, alpha=alpha, x_tr=X_train, x_te=X_test, y_tr=y_train, y_te=y_test, lars_how_many_rules=1, lars_show_path=True, lars_show_accuracy_graph=True, lars_verbose=True)
@@ -105,7 +110,7 @@ if __name__ == "__main__":
             mlflow.log_artifact(os.path.join(
                 'Plots',
                 'pruning',
-                'Embedded',
+                pruning_regressor,
                 f'Accuracy_while_pruning_Model_{dataset}_{n_rules}_nu_{nu}_sampling_{sampling}_use_gradient_{use_gradient}.png'))
 
             # print("After pruning:", final_metrics)

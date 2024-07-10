@@ -576,7 +576,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
             plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
-            plt.savefig(os.path.join('Plots', 'Pruning', 'Filter', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
+            # plt.savefig(os.path.join('Plots', 'Pruning', 'Filter', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
+            plt.savefig(
+                os.path.join('Plots',
+                             'Pruning',
+                             'Filter',
+                             f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png')
+            )
             plt.show()
 
         return
@@ -644,7 +650,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
             plt.title('Train/Test accuracy with pruned vs non-pruned rules\nMy idea Wrapper method')
-            plt.savefig(os.path.join('Plots', 'Pruning', 'MyIdeaWrapper', f'My_idea_Wrapper_{self.dataset_name}_{self.n_rules}.png'))
+            plt.savefig(
+                os.path.join('Plots',
+                             'Pruning',
+                             'MyIdeaWrapper',
+                             f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png')
+
+            )
             plt.show()
         return
 
@@ -750,7 +762,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
             plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
-            plt.savefig(os.path.join('Plots', 'Pruning', 'Wrapper', f'Wrapper_{self.dataset_name}_{self.n_rules}.png'))
+            plt.savefig(
+                os.path.join('Plots',
+                             'Pruning',
+                             'Wrapper',
+                             f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png')
+
+            )
             plt.show()
         return
 
@@ -815,10 +833,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         ax[2].scatter(active_rule_number, train_acc, c='r')
         ax[2].scatter(active_rule_number, test_acc, c='r')
         ax[2].legend()
-        plt.savefig(os.path.join('Plots',
-            'pruning',
-            'Embedded',
-            f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png'))
+        plt.savefig(
+            os.path.join('Plots',
+                         'Pruning',
+                         'Embedded',
+                         f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png')
+        )
 
         plt.show()
         return
