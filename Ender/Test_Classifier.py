@@ -85,14 +85,6 @@ if __name__ == "__main__":
         mlflow.log_metric("Max Accuracy Train", max(ender.history['accuracy']))
         mlflow.log_metric("Max Accuracy Test", max(ender.history['accuracy_test']))
 
-        # for pruning_regressor, alpha in [('LarsPath', 1), ('LogisticRegressorL1', 0.005), ('LogisticRegressorL2', 10e-7)]:
-        pruning_methods = [('LarsPath', 1)]
-        pruning_methods = [('MyIdeaWrapper', None)]  # Potentially 'accuracy'
-        pruning_methods = [('Wrapper', None)]  # Potentially 'accuracy'
-        pruning_methods = [('Filter', None)]  # Potentially 'accuracy'
-        pruning_methods = [('Filter', None), ('MyIdeaWrapper', None), ('Wrapper', None)]
-        pruning_methods = [('Embedded', None)]
-
         pruning_methods = {
             'Filter': None,
             'MyIdeaWrapper': None,
