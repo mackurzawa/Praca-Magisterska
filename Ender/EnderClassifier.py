@@ -8,7 +8,6 @@ from sklearn.metrics import accuracy_score
 from Rule import Rule
 from Cut import Cut
 from CalculateMetrics import calculate_all_metrics, calculate_accuracy
-from multiprocessing import Pool
 
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
@@ -21,12 +20,12 @@ Rp = 1e-5
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     pool = None
 
-    def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=True, prune=False, nu=1, sampling=1):
+    def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=True, nu=1,
+                 sampling=1):
         self.dataset_name = dataset_name
         self.n_rules = n_rules
         self.rules = []
 
-        self.prune = prune
         self.use_gradient = use_gradient
         self.nu = nu
         self.sampling = sampling
@@ -39,8 +38,25 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         self.is_fitted_ = False
 
+        self.X = None
+        self.y = None
         self.X_test = None
         self.y_test = None
+        self.attribute_names = None
+        self.num_classes = None
+        self.value_of_f = None
+        self.probability = None
+        self.default_rule = None
+        self.covered_instances = None
+        self.last_index_computation_of_empirical_risk = None
+        self.gradient = None
+        self.hessian = None
+        self.gradients = None
+        self.hessians = None
+        self.inverted_list = None
+        self.indices_for_better_cuts = None
+        self.max_k = None
+        self.effective_rules = None
 
     def fit(self, X, y, X_test=None, y_test=None):
         self.attribute_names = X.columns
@@ -57,9 +73,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.probability = [[0 for _ in range(self.num_classes)] for _ in range(len(self.X))]
 
         self.create_rules(X)
-
-        if self.prune:
-            self.prune_rules()
 
         self.is_fitted_ = True
 
@@ -78,7 +91,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             # for i_rule in range(self.n_rules):
             print('####################################################################################')
             print(f"Rule: {i_rule + 1}")
-            self.covered_instances = [1 for _ in range(len(X))]
             self.covered_instances = self.resampling()
             rule = self.create_rule()
 
@@ -139,7 +151,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 if cut.empirical_risk < best_cut.empirical_risk - EPSILON:
                     best_cut = cut
                     best_attribute = attribute
-            if best_attribute == -1 or best_cut.exists == False:
+            if best_attribute == -1 or not best_cut.exists:
                 creating = False
             else:
                 rule.add_condition(best_attribute, best_cut.value, best_cut.direction,
@@ -310,7 +322,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 return -self.gradient
             else:
                 self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (
-                            1 - self.probability[next_position][self.max_k]))
+                        1 - self.probability[next_position][self.max_k]))
                 return - self.gradient * abs(self.gradient) / self.hessian
         else:
             raise
@@ -334,7 +346,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 return -self.gradient
             else:
                 self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (
-                            1 - self.probability[next_position][self.max_k]))
+                        1 - self.probability[next_position][self.max_k]))
                 return - self.gradient * abs(self.gradient) / self.hessian
         else:
             raise
@@ -357,7 +369,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         gradient += INSTANCE_WEIGHT
                     gradient -= INSTANCE_WEIGHT * self.probability[i][self.max_k]
                     hessian += INSTANCE_WEIGHT * (
-                                Rp + self.probability[i][self.max_k] * (1 - self.probability[i][self.max_k]))
+                            Rp + self.probability[i][self.max_k] * (1 - self.probability[i][self.max_k]))
 
             if gradient < 0:
                 return None
@@ -387,7 +399,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     if PRE_CHOSEN_K:
                         self.gradients[k] -= INSTANCE_WEIGHT * self.probability[i][k]
                         self.hessians[k] += INSTANCE_WEIGHT * (
-                                    Rp + self.probability[i][k] * (1 - self.probability[i][k]))
+                                Rp + self.probability[i][k] * (1 - self.probability[i][k]))
                 if PRE_CHOSEN_K:
                     self.gradients[self.y[i]] += INSTANCE_WEIGHT
 
@@ -399,8 +411,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         self.max_k = k
             else:
                 for k in range(1, self.num_classes):
-                    if self.gradients[k] / self.hessians[k] ** .5 > self.gradients[self.max_k] / self.hessians[
-                        self.max_k] ** .5:
+                    if self.gradients[k] / self.hessians[k] ** .5 > self.gradients[self.max_k] / self.hessians[self.max_k] ** .5:
                         self.max_k = k
 
     def create_inverted_list(self, X):
@@ -428,21 +439,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     self.value_of_f[i][k] += decision[k]
 
     def predict(self, X, use_effective_rules=True):
-        from itertools import product
-        # check_is_fitted(self, 'is_fitted_')
         X = check_array(X)
-        if self.pool:
-            predictions = self.pool.starmap(self.predict_instance, product(X, [use_effective_rules]), chunksize=256)
-        else:
-            predictions = [self.predict_instance(x, use_effective_rules) for x in X]
+        predictions = [self.predict_instance(x, use_effective_rules) for x in X]
         return predictions
 
     def predict_instance(self, x, use_effective_rules):
         value_of_f_instance = np.array(self.default_rule)
-        if self.prune and self.is_fitted_ and use_effective_rules:
-            rules = self.effective_rules
-        else:
-            rules = self.rules
+        rules = self.rules
         for rule in rules:
             # value_of_f_instance = [elem_1 + elem_2 for elem_1, elem_2 in zip(value_of_f_instance, rule.classify_instance(x))]
             value_of_f_instance += rule.classify_instance(x)
@@ -497,8 +500,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 self.history['accuracy_test'].append(metrics['accuracy'])
                 self.history['mean_absolute_error_test'].append(metrics['mean_absolute_error'])
 
-    def prune_rules(self, regressor, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False,
-                    lars_show_accuracy_graph=False, lars_verbose=False, **kwargs):
+    def prune_rules(self, regressor, **kwargs):
         rule_feature_matrix_train = [[0 if rule.classify_instance(x)[0] == 0 else 1 for rule in self.rules] for x in
                                      kwargs['x_tr'].to_numpy()]
         rule_feature_matrix_test = [[0 if rule.classify_instance(x)[0] == 0 else 1 for rule in self.rules] for x in
@@ -554,7 +556,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         return train_acc, test_acc
 
     def filter_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
-        from sklearn.feature_selection import SelectKBest, chi2, f_classif, mutual_info_classif
+        from sklearn.feature_selection import chi2, f_classif, mutual_info_classif
         import matplotlib.pyplot as plt
         import os
 

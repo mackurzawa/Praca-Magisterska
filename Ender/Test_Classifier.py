@@ -52,7 +52,7 @@ if __name__ == "__main__":
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
         if TRAIN_NEW:
-            ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, prune=prune, nu=nu, sampling=sampling)
+            ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling)
             ender.pool = Pool()
             time_started = time()
             # ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
@@ -66,10 +66,10 @@ if __name__ == "__main__":
             mlflow.log_metric("Evaluation time", time_elapsed)
             print(f"Rules evaluated in {time_elapsed} s.")
 
-            with open (os.path.join('models', f'model_{dataset}_{n_rules}.pkl'), 'wb') as f:
+            with open(os.path.join('models', f'model_{dataset}_{n_rules}.pkl'), 'wb') as f:
                 pickle.dump(ender, f, pickle.HIGHEST_PROTOCOL)
         else:
-            with open (os.path.join('models', f'model_{dataset}_{n_rules}.pkl'), 'rb') as f:
+            with open(os.path.join('models', f'model_{dataset}_{n_rules}.pkl'), 'rb') as f:
                 ender = pickle.load(f)
 
         y_train_preds = ender.predict(X_train, use_effective_rules=False)
