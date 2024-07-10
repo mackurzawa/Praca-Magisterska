@@ -1,7 +1,6 @@
 import math
 import random
 import numpy as np
-from time import time
 from collections import Counter
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
@@ -10,7 +9,6 @@ from Rule import Rule
 from Cut import Cut
 from CalculateMetrics import calculate_all_metrics, calculate_accuracy
 from multiprocessing import Pool
-
 
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
@@ -23,7 +21,8 @@ Rp = 1e-5
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     pool = None
 
-    def __init__(self, n_rules=100, use_gradient=True, optimized_searching_for_cut=True, prune=False, nu=1, sampling=1):
+    def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=True, prune=False, nu=1, sampling=1):
+        self.dataset_name = dataset_name
         self.n_rules = n_rules
         self.rules = []
 
@@ -76,7 +75,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         print("Default rule:", self.default_rule)
         i_rule = 0
         while i_rule < self.n_rules:
-        # for i_rule in range(self.n_rules):
+            # for i_rule in range(self.n_rules):
             print('####################################################################################')
             print(f"Rule: {i_rule + 1}")
             self.covered_instances = [1 for _ in range(len(X))]
@@ -151,7 +150,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
             decision = self.compute_decision()
             if decision is None:
-             return None
+                return None
 
             decision = [dec * self.nu for dec in decision]
 
@@ -205,15 +204,16 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 self.last_index_computation_of_empirical_risk = i
                 previous_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]]
                 previous_value = self.X[previous_position][attribute]
-                while (cut_direction == GREATER_EQUAL and i >= 0) or (cut_direction != GREATER_EQUAL and i < len(self.indices_for_better_cuts[attribute])):
+                while (cut_direction == GREATER_EQUAL and i >= 0) or (
+                        cut_direction != GREATER_EQUAL and i < len(self.indices_for_better_cuts[attribute])):
                     curr_position = self.inverted_list[attribute][i]
                     # next_position = self.indices_for_better_cuts[attribute][i]
                     # print(self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]], self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]+1])
                     curr_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]]
                     if cut_direction == GREATER_EQUAL:
-                        next_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]+1]
+                        next_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i] + 1]
                     else:
-                        next_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i]-1]
+                        next_position = self.inverted_list[attribute][self.indices_for_better_cuts[attribute][i] - 1]
                     if self.covered_instances[curr_position] == 1:
                         if True:  # TODO ismissing(attribute)
                             # count += 1
@@ -229,7 +229,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                                 best_cut.exists = True
                             #
                             temp_empirical_risk = self.compute_current_empirical_risk_optimized(
-                                self.indices_for_better_cuts[attribute][i], attribute, self.covered_instances[curr_position] * weight)
+                                self.indices_for_better_cuts[attribute][i], attribute,
+                                self.covered_instances[curr_position] * weight)
 
                             print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
 
@@ -247,7 +248,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 previous_position = self.inverted_list[attribute][i]
                 previous_value = self.X[previous_position][attribute]
                 # count = 0
-                while (cut_direction == GREATER_EQUAL and i >= 0) or (cut_direction != GREATER_EQUAL and i < len(self.X)):
+                while (cut_direction == GREATER_EQUAL and i >= 0) or (
+                        cut_direction != GREATER_EQUAL and i < len(self.X)):
                     curr_position = self.inverted_list[attribute][i]
                     if self.covered_instances[curr_position] == 1:
                         if True:  # TODO ismissing(attribute)
@@ -307,7 +309,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             if self.use_gradient:
                 return -self.gradient
             else:
-                self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (1 - self.probability[next_position][self.max_k]))
+                self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (
+                            1 - self.probability[next_position][self.max_k]))
                 return - self.gradient * abs(self.gradient) / self.hessian
         else:
             raise
@@ -319,7 +322,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             # self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
 
             if self.use_gradient:
-                for i in range(self.last_index_computation_of_empirical_risk, curr_index+1):
+                for i in range(self.last_index_computation_of_empirical_risk, curr_index + 1):
                     object_index = self.inverted_list[attribute][i]
                     # print("adding gradient for object number:", object_index)
                     if self.y[object_index] == self.max_k:
@@ -327,10 +330,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     self.gradient -= INSTANCE_WEIGHT * weight * self.probability[object_index][self.max_k]
                     object_index += 1
                 # print(-self.gradient, "next_position:", next_position)
-                self.last_index_computation_of_empirical_risk = curr_index+1
+                self.last_index_computation_of_empirical_risk = curr_index + 1
                 return -self.gradient
             else:
-                self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (1 - self.probability[next_position][self.max_k]))
+                self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (
+                            1 - self.probability[next_position][self.max_k]))
                 return - self.gradient * abs(self.gradient) / self.hessian
         else:
             raise
@@ -352,7 +356,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     if self.y[i] == self.max_k:
                         gradient += INSTANCE_WEIGHT
                     gradient -= INSTANCE_WEIGHT * self.probability[i][self.max_k]
-                    hessian += INSTANCE_WEIGHT * (Rp + self.probability[i][self.max_k] * (1 - self.probability[i][self.max_k]))
+                    hessian += INSTANCE_WEIGHT * (
+                                Rp + self.probability[i][self.max_k] * (1 - self.probability[i][self.max_k]))
 
             if gradient < 0:
                 return None
@@ -381,7 +386,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     self.probability[i][k] /= norm
                     if PRE_CHOSEN_K:
                         self.gradients[k] -= INSTANCE_WEIGHT * self.probability[i][k]
-                        self.hessians[k] += INSTANCE_WEIGHT * (Rp + self.probability[i][k] * (1 - self.probability[i][k]))
+                        self.hessians[k] += INSTANCE_WEIGHT * (
+                                    Rp + self.probability[i][k] * (1 - self.probability[i][k]))
                 if PRE_CHOSEN_K:
                     self.gradients[self.y[i]] += INSTANCE_WEIGHT
 
@@ -393,7 +399,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         self.max_k = k
             else:
                 for k in range(1, self.num_classes):
-                    if self.gradients[k] / self.hessians[k] ** .5 > self.gradients[self.max_k] / self.hessians[self.max_k] ** .5:
+                    if self.gradients[k] / self.hessians[k] ** .5 > self.gradients[self.max_k] / self.hessians[
+                        self.max_k] ** .5:
                         self.max_k = k
 
     def create_inverted_list(self, X):
@@ -413,8 +420,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         self.indices_for_better_cuts[i_attr].append(i_index)
                     pass
             # print(self.indices_for_better_cuts)
-
-
 
     def update_value_of_f(self, decision):
         for i in range(len(self.X)):
@@ -443,9 +448,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             value_of_f_instance += rule.classify_instance(x)
         return value_of_f_instance
 
-
-    def predict_instance_with_specific_rules(self):
-        pass
     def predict_with_specific_rules(self, X, rule_indices):
         X = check_array(X)
         preds = []
@@ -495,10 +497,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 self.history['accuracy_test'].append(metrics['accuracy'])
                 self.history['mean_absolute_error_test'].append(metrics['mean_absolute_error'])
 
-    def prune_rules(self, regressor, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False, lars_show_accuracy_graph=False, lars_verbose=False, **kwargs):
-        # self.prune = True
-        rule_feature_matrix_train = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in kwargs['x_tr'].to_numpy()]
-        rule_feature_matrix_test = [[0 if rule.classify_instance(x)[0]==0 else 1 for rule in self.rules] for x in kwargs['x_te'].to_numpy()]
+    def prune_rules(self, regressor, alpha=0.000001, lars_how_many_rules=1, lars_show_path=False,
+                    lars_show_accuracy_graph=False, lars_verbose=False, **kwargs):
+        rule_feature_matrix_train = [[0 if rule.classify_instance(x)[0] == 0 else 1 for rule in self.rules] for x in
+                                     kwargs['x_tr'].to_numpy()]
+        rule_feature_matrix_test = [[0 if rule.classify_instance(x)[0] == 0 else 1 for rule in self.rules] for x in
+                                    kwargs['x_te'].to_numpy()]
 
         if regressor == 'MyIdeaWrapper':
             self.my_idea_wrapper_pruning(**kwargs)
@@ -509,11 +513,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         elif regressor == 'Filter':
             self.filter_pruning(rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
             return
-        # print(np.array(rule_feature_matrix))
         elif regressor == "Embedded":
             self.embedded_pruning(rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
             return
-
 
     def filter_pruning_one_method(self, method, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.feature_selection import SelectKBest
@@ -526,7 +528,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         y_test = kwargs['y_te']
         train_acc = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
         test_acc = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
-        for i in tqdm(range(1, len(self.rules)+1)):
+        for i in tqdm(range(1, len(self.rules) + 1)):
             selector = SelectKBest(method, k=i)
 
             selector.fit(rule_feature_matrix_train, y_train)
@@ -536,7 +538,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 if rule_is_chosen:
                     chosen_rules.append(rule_index)
 
-            classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42, max_iter=200)
+            classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42,
+                                            max_iter=200)
 
             X_train_new = np.array(rule_feature_matrix_train)[:, chosen_rules]
             X_test_new = np.array(rule_feature_matrix_test)[:, chosen_rules]
@@ -556,27 +559,37 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         import os
 
         print("\tChi 2:")
-        chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+        chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix_train,
+                                                                       rule_feature_matrix_test, **kwargs)
         print("\tAnova:")
-        anova_train_acc, anova_test_acc = self.filter_pruning_one_method(f_classif, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+        anova_train_acc, anova_test_acc = self.filter_pruning_one_method(f_classif, rule_feature_matrix_train,
+                                                                         rule_feature_matrix_test, **kwargs)
         print("\tMutual Info:")
-        mutual_info_train_acc, mutual_info_test_acc = self.filter_pruning_one_method(mutual_info_classif, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs)
+        mutual_info_train_acc, mutual_info_test_acc = self.filter_pruning_one_method(mutual_info_classif,
+                                                                                     rule_feature_matrix_train,
+                                                                                     rule_feature_matrix_test, **kwargs)
 
         if verbose:
             plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules+1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset', c='g')
-            plt.plot(list(range(self.n_rules+1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset', c='y')
-            plt.plot(list(range(self.n_rules+1)), mutual_info_train_acc, label='Pruned rules Filter Mutual_Info, train dataset', c='k')
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset', c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset', c='y', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), mutual_info_test_acc, label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset',
+                     c='g')
+            plt.plot(list(range(self.n_rules + 1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset',
+                     c='y')
+            plt.plot(list(range(self.n_rules + 1)), mutual_info_train_acc,
+                     label='Pruned rules Filter Mutual_Info, train dataset', c='k')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset',
+                     c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset',
+                     c='y', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), mutual_info_test_acc,
+                     label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
             plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
-            # plt.savefig(os.path.join('Plots', 'Pruning', 'Filter', f'Filter_{self.dataset_name}_{self.n_rules}.png'))
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -584,7 +597,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                              f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png')
             )
             plt.show()
-
         return
 
     def my_idea_wrapper_pruning(self, verbose=True, **kwargs):
@@ -614,7 +626,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     max_acc_index = i
             rules_indices_upward.append(max_acc_index)
             train_acc_upward.append(max_acc)
-            test_acc_upward.append(calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
+            test_acc_upward.append(
+                calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
         # DOWNWARD
         print("\tDownward")
         rules_indices_downward = []
@@ -635,17 +648,23 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             indices_in_use.remove(max_acc_index)
             rules_indices_downward.insert(0, max_acc_index)
             train_acc_downward.insert(0, max_acc)
-            test_acc_downward.insert(0, calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, indices_in_use)))
+            test_acc_downward.insert(0, calculate_accuracy(y_test,
+                                                           self.predict_with_specific_rules(X_test, indices_in_use)))
 
         if verbose:
             print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
             plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules+1)), train_acc_upward, label='Pruned rules My Idea Wrapper upward, train dataset', c='g')
-            plt.plot(list(range(self.n_rules+1)), train_acc_downward, label='Pruned rules My Idea Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), test_acc_upward, label='Pruned rules My Idea Wrapper upward, test dataset', c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), test_acc_downward, label='Pruned rules My Idea Wrapper downward, test dataset', c='y', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
+                     label='Pruned rules My Idea Wrapper upward, train dataset', c='g')
+            plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
+                     label='Pruned rules My Idea Wrapper downward, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), test_acc_upward,
+                     label='Pruned rules My Idea Wrapper upward, test dataset', c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
+                     label='Pruned rules My Idea Wrapper downward, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
@@ -655,7 +674,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                              'Pruning',
                              'MyIdeaWrapper',
                              f'Accuracy_while_pruning_Model_{self.dataset_name}_{self.n_rules}_nu_{self.nu}_sampling_{self.sampling}_use_gradient_{self.use_gradient}.png')
-
             )
             plt.show()
         return
@@ -665,7 +683,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         from matplotlib import pyplot as plt
         import os
         from sklearn.linear_model import LogisticRegression
-
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -683,7 +700,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             for i in range(self.n_rules):
                 if i in rules_indices_upward:
                     continue
-                X_train_new = np.array(rule_feature_matrix_train)[:, rules_indices_upward+[i]]
+                X_train_new = np.array(rule_feature_matrix_train)[:, rules_indices_upward + [i]]
 
                 classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42)
                 # classifier = svm.SVC(random_state=42)
@@ -691,7 +708,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 classifier.fit(X_train_new, y_train)
                 y_train_preds = classifier.predict(X_train_new)
 
-                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
+                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
 
                 if current_acc > max_acc:
                     max_acc = current_acc
@@ -701,7 +718,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             # print('Indices', rules_indices_upward)
             X_test_new = np.array(rule_feature_matrix_test)[:, rules_indices_upward]
             y_test_preds = max_classifier.predict(X_test_new)
-            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
+            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
 
             train_acc_upward.append(max_acc)
             test_acc_upward.append(max_acc_test)
@@ -713,10 +730,10 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         classifier.fit(np.array(rule_feature_matrix_train), y_train)
         y_train_preds = classifier.predict(np.array(rule_feature_matrix_train))
         y_test_preds = classifier.predict(np.array(rule_feature_matrix_test))
-        train_acc_downward = [sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)]
-        test_acc_downward = [sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)]
+        train_acc_downward = [sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)]
+        test_acc_downward = [sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)]
         indices_in_use = list(range(self.n_rules))
-        for _ in tqdm(range(self.n_rules-1)):
+        for _ in tqdm(range(self.n_rules - 1)):
             max_acc = 0
             max_acc_index = -1
             max_classifier = None
@@ -730,7 +747,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
                 classifier.fit(X_train_new, y_train)
                 y_train_preds = classifier.predict(X_train_new)
-                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
+                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
 
                 if current_acc > max_acc:
                     max_acc = current_acc
@@ -741,7 +758,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             rules_indices_downward.insert(0, max_acc_index)
             X_test_new = np.array(rule_feature_matrix_test)[:, indices_in_use]
             y_test_preds = max_classifier.predict(X_test_new)
-            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
+            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
 
             train_acc_downward.insert(0, max_acc)
             test_acc_downward.insert(0, max_acc_test)
@@ -752,12 +769,17 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
             print(f"Rules order: {rules_indices_downward} Accuracies: {test_acc_downward}")
             plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules+1)), train_acc_upward, label='Pruned rules Wrapper upward, train dataset', c='g')
-            plt.plot(list(range(self.n_rules+1)), train_acc_downward, label='Pruned rules Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules+1)), self.history['accuracy_test'], label='Old rules, test dataset', c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset', c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules+1)), test_acc_downward, label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
+                     label='Pruned rules Wrapper upward, train dataset', c='g')
+            plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
+                     label='Pruned rules Wrapper downward, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     c='b', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset',
+                     c='g', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
+                     label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
@@ -784,19 +806,15 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         from matplotlib import pyplot as plt
         import os
 
-        alphas = [1.5**x for x in range(-20, 10)]
+        alphas = [1.5 ** x for x in range(-20, 10)]
         train_acc = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
         test_acc = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
         active_rule_number = [0]
         for alpha in tqdm(alphas):
-            pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha, max_iter=10000)
+            pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha,
+                                               max_iter=10000)
             # pruning_model = LogisticRegression(multi_class='auto', penalty='l2', solver='saga', C=alpha)
             pruning_model.fit(rule_feature_matrix_train, y_train)
-
-            # print(alpha)
-            # print(pruning_model.coef_.T)
-            # print(np.sum(pruning_model.coef_, axis=0))
-            # print()
 
             y_train_preds = pruning_model.predict(rule_feature_matrix_train)
             y_test_preds = pruning_model.predict(rule_feature_matrix_test)
@@ -827,7 +845,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         ###
         ax[2].set_title("Rule number vs accuracy")
         ax[2].plot(range(self.n_rules + 1), self.history['accuracy'], label='Old rules, Train dataset', c='b')
-        ax[2].plot(range(self.n_rules + 1), self.history['accuracy_test'], label='Old rules, Test dataset', c='b', linestyle='dashed')
+        ax[2].plot(range(self.n_rules + 1), self.history['accuracy_test'], label='Old rules, Test dataset', c='b',
+                   linestyle='dashed')
         ax[2].plot(active_rule_number, train_acc, label='New rules, Train dataset', c='r')
         ax[2].plot(active_rule_number, test_acc, label='New rules, Test dataset', c='r', linestyle='dashed')
         ax[2].scatter(active_rule_number, train_acc, c='r')
@@ -855,7 +874,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             results_train[results_train > 0.5] = 1
             results_train[results_train <= 0.5] = 0
             for y_train_preds in results_train.T:
-                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
+                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
                 train_acc.append(current_acc)
 
             test_acc = []
@@ -864,7 +883,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             results_test[results_test > threshold] = 1
             results_test[results_test <= threshold] = 0
             for y_test_preds in results_test.T:
-                current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
+                current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
                 test_acc.append(current_acc)
             x_acc_new = list(range(len(results_train[0])))
 
@@ -890,8 +909,10 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
             if lars_show_accuracy_graph:
                 plt.figure(figsize=(10, 7))
-                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'], label='Old rules, train dataset', c='b')
-                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'], label='Old rules, test dataset', linestyle='dashed', c='b')
+                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'],
+                         label='Old rules, train dataset', c='b')
+                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'],
+                         label='Old rules, test dataset', linestyle='dashed', c='b')
                 plt.plot(x_acc_new, train_acc, label='Pruned rules, Embedded, train dataset', c='r')
                 plt.plot(x_acc_new, test_acc, label='Pruned rules, Embedded, test dataset', linestyle='dashed', c='r')
 
@@ -962,8 +983,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
         print(
             f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
-
-
 
     # def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
     #     from sklearn.linear_model import Lasso
