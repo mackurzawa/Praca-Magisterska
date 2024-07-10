@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/ac33f15b7e7443e0b0e07a6c87488bf0/artifacts
+deleted_time: 1720123390044
+end_time: 1720039744382
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: ac33f15b7e7443e0b0e07a6c87488bf0
+run_name: ambitious-ant-609
+run_uuid: ac33f15b7e7443e0b0e07a6c87488bf0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720039744354
+status: 4
+tags: []
+user_id: Maciej

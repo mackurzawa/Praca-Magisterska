@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/b48a1bdc23d741e0bad849434267fb12/artifacts
+deleted_time: 1720043571550
+end_time: 1720043010304
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: b48a1bdc23d741e0bad849434267fb12
+run_name: capable-hog-128
+run_uuid: b48a1bdc23d741e0bad849434267fb12
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720043000155
+status: 3
+tags: []
+user_id: Maciej

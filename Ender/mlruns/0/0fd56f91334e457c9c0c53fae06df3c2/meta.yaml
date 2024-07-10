@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/0fd56f91334e457c9c0c53fae06df3c2/artifacts
+deleted_time: 1720043571585
+end_time: 1720040664819
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: 0fd56f91334e457c9c0c53fae06df3c2
+run_name: unleashed-sow-297
+run_uuid: 0fd56f91334e457c9c0c53fae06df3c2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720040645673
+status: 4
+tags: []
+user_id: Maciej

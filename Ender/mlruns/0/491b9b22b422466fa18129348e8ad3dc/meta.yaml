@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/491b9b22b422466fa18129348e8ad3dc/artifacts
+deleted_time: 1720043571578
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: 491b9b22b422466fa18129348e8ad3dc
+run_name: melodic-gnat-423
+run_uuid: 491b9b22b422466fa18129348e8ad3dc
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720040736185
+status: 1
+tags: []
+user_id: Maciej

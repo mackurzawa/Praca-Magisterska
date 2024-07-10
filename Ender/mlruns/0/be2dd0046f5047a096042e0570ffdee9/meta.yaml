@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/be2dd0046f5047a096042e0570ffdee9/artifacts
+deleted_time: 1720043571572
+end_time: 1720040878555
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: be2dd0046f5047a096042e0570ffdee9
+run_name: salty-fly-538
+run_uuid: be2dd0046f5047a096042e0570ffdee9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720040862415
+status: 4
+tags: []
+user_id: Maciej

@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/7f7f94d9edba4046bbb39460a6388b66/artifacts
+deleted_time: 1720043571549
+end_time: 1720043026965
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: 7f7f94d9edba4046bbb39460a6388b66
+run_name: unique-moth-334
+run_uuid: 7f7f94d9edba4046bbb39460a6388b66
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720043014935
+status: 3
+tags: []
+user_id: Maciej

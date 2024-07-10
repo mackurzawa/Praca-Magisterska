@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/1482c3f89a934c0cb8cdae58fa9f4746/artifacts
+deleted_time: 1720043571591
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: 1482c3f89a934c0cb8cdae58fa9f4746
+run_name: melodic-seal-423
+run_uuid: 1482c3f89a934c0cb8cdae58fa9f4746
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720039868796
+status: 1
+tags: []
+user_id: Maciej

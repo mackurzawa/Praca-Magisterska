@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/f215ca8b0bb14c9286ed1710ed2647c0/artifacts
+deleted_time: 1720123390054
+end_time: 1720039790753
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: f215ca8b0bb14c9286ed1710ed2647c0
+run_name: resilient-panda-463
+run_uuid: f215ca8b0bb14c9286ed1710ed2647c0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720039790723
+status: 4
+tags: []
+user_id: Maciej

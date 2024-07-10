@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/bae500cab3da4b809c67590f6cf40264/artifacts
+deleted_time: 1720043571585
+end_time: null
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: bae500cab3da4b809c67590f6cf40264
+run_name: adaptable-smelt-883
+run_uuid: bae500cab3da4b809c67590f6cf40264
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720040306373
+status: 1
+tags: []
+user_id: Maciej

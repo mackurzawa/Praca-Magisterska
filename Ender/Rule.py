@@ -25,7 +25,7 @@ class Rule():
         self.conditions.append(condition)
         self.attribute_names.append(attribute_name)
 
-    def classify_instance(self, x):
+    def classify_instance(self, x, prune=False): # TODO delete prune
         for condition in self.conditions:
             if not condition[1] <= x[condition[0]] <= condition[2]:
                 return 0 if type(self.decision) is int else [0 for _ in range(len(self.decision))]

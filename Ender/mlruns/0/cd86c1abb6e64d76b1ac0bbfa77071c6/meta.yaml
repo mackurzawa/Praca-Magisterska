@@ -1,0 +1,16 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/cd86c1abb6e64d76b1ac0bbfa77071c6/artifacts
+deleted_time: 1720123390097
+end_time: 1720044478429
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: cd86c1abb6e64d76b1ac0bbfa77071c6
+run_name: salty-skink-516
+run_uuid: cd86c1abb6e64d76b1ac0bbfa77071c6
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720044477731
+status: 4
+tags: []
+user_id: Maciej
