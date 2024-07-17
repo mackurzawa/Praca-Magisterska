@@ -146,6 +146,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         while creating:
             best_attribute = -1
             cut = Cut()
+            # print()
+            # print(self.probability)
+            # print(self.max_k)
             for attribute in range(len(self.X[0])):
                 cut = self.find_best_cut(attribute)
                 if cut.empirical_risk < best_cut.empirical_risk - EPSILON:
@@ -197,6 +200,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         GREATER_EQUAL = 1
         LESS_EQUAL = -1
         EPSILON = 1e-8
+        # print('new attribute')
         for cut_direction in [-1, 1]:
             # print()
             # print("zmiana kierunku!")
@@ -244,7 +248,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                                 self.indices_for_better_cuts[attribute][i], attribute,
                                 self.covered_instances[curr_position] * weight)
 
-                            print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
+                            # print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
 
                             current_value = self.X[curr_position][attribute]
                     i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
@@ -259,10 +263,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 i = len(self.X) - 1 if cut_direction == GREATER_EQUAL else 0
                 previous_position = self.inverted_list[attribute][i]
                 previous_value = self.X[previous_position][attribute]
-                # count = 0
+                count = 0
                 while (cut_direction == GREATER_EQUAL and i >= 0) or (
                         cut_direction != GREATER_EQUAL and i < len(self.X)):
+                    count += 1
                     curr_position = self.inverted_list[attribute][i]
+                    # print(count, self.covered_instances[curr_position])
                     if self.covered_instances[curr_position] == 1:
                         if True:  # TODO ismissing(attribute)
                             # count += 1
@@ -277,7 +283,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                             #
                             # print("empirical risk:", temp_empirical_risk)
                             # print()
-
                             if previous_value != curr_value:
                                 if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
                                     # print(previous_value, curr_value)
@@ -289,6 +294,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                             temp_empirical_risk = self.compute_current_empirical_risk(
                                 curr_position, self.covered_instances[curr_position] * weight)
 
+                            # print(temp_empirical_risk)
                             # print("temp_empirical_risk computed for curr_position:", curr_position, temp_empirical_risk)
 
                             previous_value = self.X[curr_position][attribute]
@@ -315,9 +321,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
     def compute_current_empirical_risk(self, next_position, weight):
         if PRE_CHOSEN_K:
+            temp = 0
             if self.y[next_position] == self.max_k:
                 self.gradient += INSTANCE_WEIGHT * weight
+                temp += INSTANCE_WEIGHT * weight
             self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
+            # print(next_position, temp - self.probability[next_position][self.max_k])
             if self.use_gradient:
                 return -self.gradient
             else:
@@ -402,6 +411,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                                 Rp + self.probability[i][k] * (1 - self.probability[i][k]))
                 if PRE_CHOSEN_K:
                     self.gradients[self.y[i]] += INSTANCE_WEIGHT
+
 
         if PRE_CHOSEN_K:
             self.max_k = 0

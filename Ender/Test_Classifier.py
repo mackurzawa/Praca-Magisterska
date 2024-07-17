@@ -15,7 +15,7 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 50
+    n_rules = 10
     # use_gradient = True
     use_gradient = False
     # optimized_searching_for_cut = True
@@ -24,16 +24,16 @@ if __name__ == "__main__":
     # TRAIN_NEW = False
     TRAIN_NEW = True
     # dataset = 'apple'
-    # dataset = 'wine'
+    dataset = 'wine'
     # dataset = 'bank'
     ##########
     # dataset = 'haberman'
     # dataset = 'liver'
-    dataset = 'breast-c'
+    # dataset = 'breast-c'
     # dataset = 'spambase'
 
     nu = .5
-    sampling = .5
+    sampling = 1
 
     params = {
         "Classification": True,
