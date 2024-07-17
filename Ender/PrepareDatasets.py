@@ -16,7 +16,7 @@ def prepare_dataset(dataset):
     elif dataset == 'liver':
         X, y = prepare_liver_disorder_classification_dataset()
     elif dataset == 'haberman':
-        X, y = prepare_liver_disorder_classification_dataset()
+        X, y = prepare_haberman_classification_dataset()
     elif dataset == 'breast-c':
         X, y = prepare_breast_c_classification_dataset()
     elif dataset == 'spambase':
@@ -91,7 +91,7 @@ def prepare_bank_classification_dataset():
 def prepare_haberman_classification_dataset():
     data = pd.read_csv(os.path.join(DATA_PATH, "Classification Haberman.csv"), sep=',')
 
-    decision_attribute = 3
+    decision_attribute = 'd'
     X, y = data.drop([decision_attribute], axis=1), data[decision_attribute]
     X = pd.get_dummies(X)
     y = np.array(y)

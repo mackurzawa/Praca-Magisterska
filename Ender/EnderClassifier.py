@@ -20,8 +20,8 @@ Rp = 1e-5
 class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     pool = None
 
-    def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=True, nu=1,
-                 sampling=1):
+    def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=False, nu=1,
+                 sampling=1, verbose=True):
         self.dataset_name = dataset_name
         self.n_rules = n_rules
         self.rules = []
@@ -29,6 +29,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.use_gradient = use_gradient
         self.nu = nu
         self.sampling = sampling
+
+        self.verbose = verbose
 
         self.optimized_searching_for_cut = optimized_searching_for_cut
         self.history = {'accuracy': [],
@@ -85,12 +87,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.default_rule = self.create_default_rule()
         self.rules = []
         self.update_value_of_f(self.default_rule)
-        print("Default rule:", self.default_rule)
+        if self.verbose : print("Default rule:", self.default_rule)
         i_rule = 0
         while i_rule < self.n_rules:
             # for i_rule in range(self.n_rules):
-            print('####################################################################################')
-            print(f"Rule: {i_rule + 1}")
+            if self.verbose:
+                print('####################################################################################')
+                print(f"Rule: {i_rule + 1}")
             self.covered_instances = self.resampling()
             rule = self.create_rule()
 
@@ -170,19 +173,19 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             decision = [dec * self.nu for dec in decision]
 
             rule.decision = decision
-
-            for i_condition in range(len(rule.conditions)):
-                if rule.conditions[i_condition][1] == -99999999999999999:
-                    print(f'\t{rule.attribute_names[i_condition]} <= {rule.conditions[i_condition][2]}')
-                elif rule.conditions[i_condition][2] == 99999999999999999:
-                    print(f'\t{rule.attribute_names[i_condition]} >= {rule.conditions[i_condition][1]}')
-                else:
-                    print(
-                        f'\t{rule.attribute_names[i_condition]} in [{rule.conditions[i_condition][1]}, {rule.conditions[i_condition][2]}]')
-            max_weight = max(rule.decision)
-            print(f'=> vote for class {rule.decision.index(max_weight)} with weight {max_weight}')
-            print(rule.decision)
-            print()
+            if self.verbose:
+                for i_condition in range(len(rule.conditions)):
+                    if rule.conditions[i_condition][1] == -99999999999999999:
+                        print(f'\t{rule.attribute_names[i_condition]} <= {rule.conditions[i_condition][2]}')
+                    elif rule.conditions[i_condition][2] == 99999999999999999:
+                        print(f'\t{rule.attribute_names[i_condition]} >= {rule.conditions[i_condition][1]}')
+                    else:
+                        print(
+                            f'\t{rule.attribute_names[i_condition]} in [{rule.conditions[i_condition][1]}, {rule.conditions[i_condition][2]}]')
+                max_weight = max(rule.decision)
+                print(f'=> vote for class {rule.decision.index(max_weight)} with weight {max_weight}')
+                print(rule.decision)
+                print()
             return rule
         else:
             return None
@@ -412,7 +415,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 if PRE_CHOSEN_K:
                     self.gradients[self.y[i]] += INSTANCE_WEIGHT
 
-
         if PRE_CHOSEN_K:
             self.max_k = 0
             if self.use_gradient:
@@ -421,7 +423,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         self.max_k = k
             else:
                 for k in range(1, self.num_classes):
-                    if self.gradients[k] / self.hessians[k] ** .5 > self.gradients[self.max_k] / self.hessians[self.max_k] ** .5:
+                    if self.gradients[k] / self.hessians[k] ** .5 > self.gradients[self.max_k] / self.hessians[
+                        self.max_k] ** .5:
                         self.max_k = k
 
     def create_inverted_list(self, X):
