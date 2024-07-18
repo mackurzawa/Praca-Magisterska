@@ -15,6 +15,7 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
+    RANDOM_STATE = 42
     n_rules = 100
     # use_gradient = True
     use_gradient = False
@@ -29,8 +30,8 @@ if __name__ == "__main__":
     ##########
     # dataset = 'haberman'
     # dataset = 'liver'
-    # dataset = 'breast-c'
-    dataset = 'spambase'
+    dataset = 'breast-c'
+    # dataset = 'spambase'
 
     nu = .5
     sampling = .5
@@ -52,7 +53,7 @@ if __name__ == "__main__":
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
         if TRAIN_NEW:
-            ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling)
+            ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling, random_state=RANDOM_STATE)
             ender.pool = Pool()
             time_started = time()
             ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)

@@ -21,7 +21,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     pool = None
 
     def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=False, nu=1,
-                 sampling=1, verbose=True):
+                 sampling=1, verbose=True, random_state=42):
         self.dataset_name = dataset_name
         self.n_rules = n_rules
         self.rules = []
@@ -31,6 +31,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.sampling = sampling
 
         self.verbose = verbose
+        self.random_state = random_state
+        random.seed(random_state)
 
         self.optimized_searching_for_cut = optimized_searching_for_cut
         self.history = {'accuracy': [],
@@ -494,24 +496,28 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         predictions_train = np.array([self.default_rule for _ in range(len(self.X))])
         metrics = calculate_all_metrics(self.y, predictions_train)
         self.history['accuracy'] = [metrics['accuracy']]
+        self.history['f1'] = [metrics['f1']]
         self.history['mean_absolute_error'] = [metrics['mean_absolute_error']]
         for i_rule in tqdm(range(self.n_rules)):
             for i_x, x in enumerate(self.X):
                 predictions_train[i_x] += np.array(self.rules[i_rule].classify_instance(x))
             metrics = calculate_all_metrics(self.y, predictions_train)
             self.history['accuracy'].append(metrics['accuracy'])
+            self.history['f1'].append(metrics['f1'])
             self.history['mean_absolute_error'].append(metrics['mean_absolute_error'])
 
         if self.X_test is not None and self.y_test is not None:
             predictions_test = np.array([self.default_rule for _ in range(len(self.X_test))])
             metrics = calculate_all_metrics(self.y_test, predictions_test)
             self.history['accuracy_test'] = [metrics['accuracy']]
+            self.history['f1_test'] = [metrics['f1']]
             self.history['mean_absolute_error_test'] = [metrics['mean_absolute_error']]
             for i_rule in tqdm(range(self.n_rules)):
                 for i_x, x in enumerate(self.X_test):
                     predictions_test[i_x] += np.array(self.rules[i_rule].classify_instance(x))
                 metrics = calculate_all_metrics(self.y_test, predictions_test)
                 self.history['accuracy_test'].append(metrics['accuracy'])
+                self.history['f1_test'].append(metrics['f1'])
                 self.history['mean_absolute_error_test'].append(metrics['mean_absolute_error'])
 
     def prune_rules(self, regressor, **kwargs):
@@ -554,7 +560,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 if rule_is_chosen:
                     chosen_rules.append(rule_index)
 
-            classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42,
+            classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=self.random_state,
                                             max_iter=200)
 
             X_train_new = np.array(rule_feature_matrix_train)[:, chosen_rules]
@@ -718,7 +724,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     continue
                 X_train_new = np.array(rule_feature_matrix_train)[:, rules_indices_upward + [i]]
 
-                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42)
+                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=self.random_state)
                 # classifier = svm.SVC(random_state=42)
 
                 classifier.fit(X_train_new, y_train)
@@ -742,7 +748,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         # DOWNWARD
         print("\tDownward")
         rules_indices_downward = []
-        classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42)
+        classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=self.random_state)
         classifier.fit(np.array(rule_feature_matrix_train), y_train)
         y_train_preds = classifier.predict(np.array(rule_feature_matrix_train))
         y_test_preds = classifier.predict(np.array(rule_feature_matrix_test))
@@ -758,7 +764,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 temp_indices_in_use.remove(rule_index)
                 X_train_new = np.array(rule_feature_matrix_train)[:, temp_indices_in_use]
 
-                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=42)
+                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=self.random_state)
                 # classifier = svm.SVC(random_state=42)
 
                 classifier.fit(X_train_new, y_train)

@@ -6,7 +6,7 @@ from rulefit.rulefit import RuleFitClassifier
 
 from PrepareDatasets import prepare_dataset
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 
 from time import time
 import pandas as pd
@@ -18,6 +18,11 @@ KFolds = 5
 
 ender_n_rules, ender_nu, ender_sampling = 100, 0.5, 0.25
 
+
+def _mean(x):
+    return sum(x) / len(x)
+
+
 data_final = pd.DataFrame({
     'Model': [],
     'Dataset': [],
@@ -25,7 +30,9 @@ data_final = pd.DataFrame({
     'No_crossvalidation': [],
     'Time training': [],
     'Train Accuracy': [],
-    'Test Accuracy': []
+    'Test Accuracy': [],
+    'Train F1': [],
+    'Test F1': [],
 })
 data_every_fold = data_final.copy()
 
@@ -50,12 +57,12 @@ for dataset in datasets:
     models = {
         'XGBoost': XGBClassifier(eval_metric='logloss'),
         'CatBoost': CatBoostClassifier(verbose=0),
-        'RuleFit': RuleFitClassifier(),
+        'RuleFit': RuleFitClassifier(random_state=SEED),
         'Ender_Gradient': EnderClassifier(dataset_name=dataset, n_rules=ender_n_rules, use_gradient=True, nu=ender_nu, sampling=ender_sampling, verbose=False),
         'Ender_Newton-Raphson': EnderClassifier(dataset_name=dataset, n_rules=ender_n_rules, use_gradient=False, nu=ender_nu, sampling=ender_sampling, verbose=False),
     }
     for model_name, model in models.items():
-        times, train_accuracies, test_accuracies = [], [], []
+        times, train_accuracies, test_accuracies, train_f1s, test_f1s = [], [], [], [], []
 
         for i_crossval, (train_indices, test_indices) in enumerate(StratifiedKFold(n_splits=KFolds, shuffle=True, random_state=SEED).split(X, y)):
             X_train, y_train, X_test, y_test = X.iloc[train_indices], y[train_indices], X.iloc[test_indices], y[test_indices]
@@ -77,6 +84,8 @@ for dataset in datasets:
                 model.evaluate_all_rules()
                 accuracy_train = max(model.history['accuracy'])
                 accuracy_test = max(model.history['accuracy_test'])
+                f1_train = max(model.history['f1'])
+                f1_test = max(model.history['f1_test'])
             else:
                 if model_name == 'RuleFit':
                     y_pred_train = model.predict(X_train.to_numpy())
@@ -86,17 +95,24 @@ for dataset in datasets:
                     y_pred_test = model.predict(X_test)
                 accuracy_train = accuracy_score(y_train, y_pred_train)
                 accuracy_test = accuracy_score(y_test, y_pred_test)
+                f1_train = f1_score(y_train, y_pred_train)
+                f1_test = f1_score(y_test, y_pred_test)
+
 
             times.append(time_elapsed)
             train_accuracies.append(accuracy_train)
             test_accuracies.append(accuracy_test)
+            train_f1s.append(f1_train)
+            test_f1s.append(f1_test)
 
-            data_every_fold.loc[len(data_every_fold.index)] = [model_name, dataset, SEED, i_crossval + 1, time_elapsed, accuracy_train, accuracy_test]
+            data_every_fold.loc[len(data_every_fold.index)] = [model_name, dataset, SEED, i_crossval + 1, time_elapsed, accuracy_train, accuracy_test, f1_train, f1_test]
             data_every_fold.to_csv('fold_' + CSV_PATH, index=False)
             print(f'Train accuracy: {accuracy_train}')
             print(f'Test accuracy: {accuracy_test}')
+            print(f'Train f1: {f1_train}')
+            print(f'Test f1: {f1_test}')
             print('='*100)
-        data_final.loc[len(data_every_fold.index)] = [model_name, dataset, SEED, '-', sum(times)/len(times), sum(train_accuracies)/len(train_accuracies), sum(test_accuracies)/len(test_accuracies)]
+        data_final.loc[len(data_every_fold.index)] = [model_name, dataset, SEED, '-', _mean(times), _mean(train_accuracies), _mean(test_accuracies), _mean(train_f1s), _mean(test_f1s)]
         data_final.to_csv('final_' + CSV_PATH, index=False)
         print()
         print('=' * 100)
