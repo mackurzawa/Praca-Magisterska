@@ -16,7 +16,7 @@ SEED = 42
 CSV_PATH = 'EVAL.csv'
 KFolds = 5
 
-ender_n_rules, ender_nu, ender_sampling = 500, 0.5, 0.5
+ender_n_rules, ender_nu, ender_sampling = 100, 0.5, 0.25
 
 data_final = pd.DataFrame({
     'Model': [],

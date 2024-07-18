@@ -94,6 +94,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             if self.verbose:
                 print('####################################################################################')
                 print(f"Rule: {i_rule + 1}")
+            print(f"Rule: {i_rule + 1}")
             self.covered_instances = self.resampling()
             rule = self.create_rule()
 
