@@ -160,6 +160,30 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 if cut.empirical_risk < best_cut.empirical_risk - EPSILON:
                     best_cut = cut
                     best_attribute = attribute
+
+            # attribute_indices = list(range(len(self.X[0])))
+            # # print(attribute_indices)
+            # with Pool(processes=multiprocessing.cpu_count()) as pool:
+            #     print('przed')
+            #     cuts = pool.map(self._worker, [attr for attr in attribute_indices])
+            #     print('po')
+            # # with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+            # #     # Przekazujemy krotki (self, attr) do _worker
+            # #     futures = [executor.submit(self._worker, attr) for attr in attribute_indices]
+            # #
+            # #     # Pobieramy wyniki
+            # #     cuts = [future.result() for future in concurrent.futures.as_completed(futures)]
+            # for i_cut, cut in enumerate(cuts):
+            #     # print(cut.empirical_risk)
+            #     if cut.empirical_risk < best_cut.empirical_risk - EPSILON:
+            #         best_cut = cut
+            #         best_attribute = i_cut
+
+            # best_attribute = np.argmin([cut.empirical_risk for cut in cuts])
+            # best_cut = cuts[best_attribute]
+            # print(best_attribute)
+            # print(best_cut)
+
             if best_attribute == -1 or not best_cut.exists:
                 creating = False
             else:
@@ -192,6 +216,12 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             return rule
         else:
             return None
+
+    def _worker(self, attribute):
+        print('wszedl')
+        x = self.find_best_cut(attribute)
+        print('wyszedl')
+        return x
 
     def find_best_cut(self, attribute):
         # print()
@@ -1167,7 +1197,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     #     print(
     #         f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
 
-    def __getstate__(self):
-        self_dict = self.__dict__.copy()
-        del self_dict['pool']
-        return self_dict
+    # def __getstate__(self):
+    #     self_dict = self.__dict__.copy()
+    #     del self_dict['pool']
+    #     return self_dict

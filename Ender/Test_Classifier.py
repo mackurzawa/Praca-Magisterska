@@ -16,7 +16,7 @@ from multiprocessing import Pool
 
 if __name__ == "__main__":
     RANDOM_STATE = 42
-    n_rules = 100
+    n_rules = 10
     # use_gradient = True
     use_gradient = False
     # optimized_searching_for_cut = True
@@ -30,8 +30,8 @@ if __name__ == "__main__":
     ##########
     # dataset = 'haberman'
     # dataset = 'liver'
-    dataset = 'breast-c'
-    # dataset = 'spambase'
+    # dataset = 'breast-c'
+    dataset = 'spambase'
 
     nu = .5
     sampling = .5
