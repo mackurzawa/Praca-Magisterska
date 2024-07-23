@@ -12,13 +12,14 @@ from time import time
 import pandas as pd
 import numpy as np
 import multiprocessing
+import os
 
 
 SEED = 42
 CSV_PATH = 'EVAL.csv'
 KFolds = 5
 
-ender_n_rules, ender_nu, ender_sampling = 200, 0.5, 0.25
+ender_n_rules, ender_nu, ender_sampling = 100, 0.5, 0.25
 
 
 def _mean(x):
@@ -109,12 +110,10 @@ if __name__ == "__main__":
 
         X.columns = list(range(len(X.columns)))
 
-        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
         models = {
-            'XGBoost': XGBClassifier(eval_metric='logloss'),
-            'CatBoost': CatBoostClassifier(verbose=0),
-            'RuleFit': RuleFitClassifier(random_state=SEED),
+            # 'XGBoost': XGBClassifier(eval_metric='logloss'),
+            # 'CatBoost': CatBoostClassifier(verbose=0),
+            # 'RuleFit': RuleFitClassifier(random_state=SEED),
             'Ender_Gradient': EnderClassifier(dataset_name=dataset, n_rules=ender_n_rules, use_gradient=True, nu=ender_nu, sampling=ender_sampling, verbose=False),
             'Ender_Newton-Raphson': EnderClassifier(dataset_name=dataset, n_rules=ender_n_rules, use_gradient=False, nu=ender_nu, sampling=ender_sampling, verbose=False),
         }
@@ -136,14 +135,14 @@ if __name__ == "__main__":
                 test_f1s.append(f1_test)
 
                 data_every_fold.loc[len(data_every_fold.index)] = [model_name, dataset, SEED, i_crossval + 1, time_elapsed, accuracy_train, accuracy_train_rule_number, accuracy_test, accuracy_test_rule_number, f1_train, f1_train_rule_number, f1_test, f1_test_rule_number, n_rules]
-                data_every_fold.to_csv('fold_' + CSV_PATH, index=False)
+                data_every_fold.to_csv(os.path.join('..', 'fold_' + CSV_PATH), index=False)
                 print(f'Train accuracy: {accuracy_train}')
                 print(f'Test accuracy: {accuracy_test}')
                 print(f'Train f1: {f1_train}')
                 print(f'Test f1: {f1_test}')
                 print('='*100)
             data_final.loc[len(data_every_fold.index)] = [model_name, dataset, SEED, '-', _mean(times), _mean(train_accuracies), None, _mean(test_accuracies), None, _mean(train_f1s), None, _mean(test_f1s), None, n_rules]
-            data_final.to_csv('final_' + CSV_PATH, index=False)
+            data_final.to_csv(os.path.join('..', 'final_' + CSV_PATH), index=False)
             print()
             print('=' * 100)
     print(f"Evaluated in {time() - time_start}")

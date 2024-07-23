@@ -11,6 +11,7 @@ def prepare_dataset(dataset):
         X, y = prepare_wine_classification_dataset()
     elif dataset == 'apple':
         X, y = prepare_apple_classification_dataset()
+        # X, y = prepare_apple_small_classification_dataset()
     elif dataset == 'bank':
         X, y = prepare_bank_classification_dataset()
     elif dataset == 'liver':
