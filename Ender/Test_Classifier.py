@@ -16,11 +16,12 @@ from multiprocessing import Pool
 
 if __name__ == "__main__":
     RANDOM_STATE = 42
-    n_rules = 40
+    n_rules = 5
     use_gradient = True
     # use_gradient = False
-    optimized_searching_for_cut = True
-    # optimized_searching_for_cut = False
+    optimized_searching_for_cut = 0  # Standard
+    optimized_searching_for_cut = 1  # Quicker
+    # optimized_searching_for_cut = 2  # The quickest
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
@@ -34,8 +35,8 @@ if __name__ == "__main__":
     dataset = 'spambase'
 
     nu = .5
-    # sampling = .5
     sampling = 1
+    # sampling = 1
 
     params = {
         "Classification": True,
