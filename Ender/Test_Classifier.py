@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # use_gradient = False
     optimized_searching_for_cut = 0  # Standard
     optimized_searching_for_cut = 1  # Quicker
-    # optimized_searching_for_cut = 2  # The quickest
+    optimized_searching_for_cut = 2  # The quickest
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
