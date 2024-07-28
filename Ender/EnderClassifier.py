@@ -152,10 +152,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         creating = True
         EPSILON = 1e-8
         count = 0
-        FILENAME = f'log{self.optimized_searching_for_cut}.txt'
-        file = open(FILENAME, 'a')
-        file.write(f"create next ({len(self.rules) + 1}) rule\n")
-        file.close()
+        # self.file.write(f"create next ({len(self.rules) + 1}) rule\n")
         while creating:
             count += 1
             best_attribute = -1
@@ -164,16 +161,13 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             # print(self.probability)
             # print(self.max_k)
 
-            FILENAME = f'log{self.optimized_searching_for_cut}.txt'
-            file = open(FILENAME, 'a')
-            file.write(f"Adding next ({count}) attribute\n")
-            file.close()
+            # self.file.write(f"Adding next ({count}) attribute\n")
             for attribute in range(len(self.X[0])):
                 cut = self.find_best_cut(attribute)
                 if cut.empirical_risk < best_cut.empirical_risk - EPSILON:
                     best_cut = cut
                     best_attribute = attribute
-            if count == 2 and len(self.rules) == 1: raise
+            # if count == 2 and len(self.rules) == 1: raise
             # raise
                 # raise
             # attribute_indices = list(range(len(self.X[0])))
@@ -261,7 +255,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         print(f'old sum: {len(self.inverted_list[0]) * len(self.inverted_list)}')
 
     def find_best_cut(self, attribute):
-        FILENAME = f'log{self.optimized_searching_for_cut}.txt'
         # print()
         # print('attribute:', attribute)
         best_cut = Cut()
@@ -278,15 +271,14 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         empirical_risks = []
         # print('new attribute')
         # print(attribute)
-        file = open(FILENAME, 'a')
         empirical_risks = []
         indices_to_check = []
-        file.write(str(attribute) + '\n')
+        # self.file.write(str(attribute) + '\n')
         for cut_direction in [-1, 1]:
             # print()
             # print("zmiana kierunku!")
             # print()
-            file.write(str(cut_direction) + ' zmiana kierunku\n')
+            # self.file.write(str(cut_direction) + ' zmiana kierunku na atrybucie: ' + str(attribute) + '\n')
             self.initialize_for_cut()
             # self.calculate_current_optimized_cuts()
 
@@ -296,9 +288,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     previous_position = self.inverted_list[attribute][i]
                     previous_value = self.X[previous_position][attribute]
                     previous_class = self.y[previous_position]
-                    added_risk, temp_previous_value, curr_value = 0, None, None
+                    # added_risk, temp_previous_value, curr_value = 0, None, None
                     # print(len(empirical_risks))
-                    count = i
+                    count = i - 1
                     while (cut_direction == GREATER_EQUAL and i >= 0) or (
                             cut_direction != GREATER_EQUAL and i < len(self.X)):
                         curr_position = self.inverted_list[attribute][i]
@@ -316,7 +308,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
                             temp_empirical_risk, added_risk = self.compute_current_empirical_risk_optimized(
                                 curr_position, self.covered_instances[curr_position] * weight)
-                            # file.write(str(i) + ' ' + str(temp_empirical_risk) + '\n')
+
+                            # if len(self.rules) == 1: self.file.write('t;' + str(i) + ';' + str(temp_empirical_risk) + ';' + str(added_risk) + '\n')
                             empirical_risks.append([added_risk, previous_value, curr_value, count])
                             current_class = self.y[curr_position]
                             if previous_class != current_class: indices_to_check.append(count)
@@ -326,44 +319,60 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                             temp_previous_value = previous_value
                             previous_value = self.X[curr_position][attribute]
 
-                        # empirical_risks.append([added_risk, temp_previous_value, curr_value, i])
                         i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
-                    # print('count', count)
                 else:
-                    del indices_to_check[-1] # TOCHECK
-                    risks = [0]
-                    for added_risk, _, _, _ in empirical_risks[::-1]:
-                        risks.append(risks[-1] + added_risk)
-                    del risks[0]
-                    # print(np.array(empirical_risks)[:, 1:].shape, np.array(risks).shape)
-                    # print(np.concatenate([np.array(empirical_risks)[:, 1:].tolist(), [[x] for x in risks]], axis=1).tolist())
-                    # print(indices_to_check)
-                    for i_ri, ri in enumerate(risks):
-                        file.write(f"{i_ri} {ri}\n")
-                    file.write(f"koniec\n")
-
-                    for i in indices_to_check:
-                        # print(i)
-                        risk = risks[i]
-                        # file.write(str(i) + ' ' + str(risk) + '\n')
-                        _, previous_value, curr_value, _ = empirical_risks[i]
+                    current_risk = 0
+                    risks = []
+                    # for (added_risk, previous_value, curr_value, i) in empirical_risks[::-1]:
+                    for (added_risk, previous_value, curr_value, i) in empirical_risks[::-1]:
+                        current_risk += added_risk
+                        risks.append(current_risk)
+                    risks = risks[::-1]
+                    for j in indices_to_check:
+                        # print(j, len(empirical_risks))
+                        added_risk, previous_value, curr_value, i = empirical_risks[j]
                         if previous_value != curr_value:
-                            if risk < best_cut.empirical_risk - EPSILON:
-                                # print('HALO', attribute, i)
+                            if risks[j] < best_cut.empirical_risk - EPSILON:
+                                # print(j, previous_value, curr_value, risk)
                                 best_cut.direction = 1
                                 best_cut.value = (previous_value + curr_value) / 2
-                                best_cut.empirical_risk = risk
+                                best_cut.empirical_risk = risks[j]
                                 best_cut.exists = True
 
 
-                    # for i_r, (added_risk, previous_value,  curr_value, i) in enumerate(empirical_risks[::-1]):
+
+                    # risk = 0
+                    # for j, (added_risk, previous_value, curr_value, i) in enumerate(empirical_risks[::-1]):
+                    #     risk += added_risk
+                    #     # risks.append(risk)
+                    #     # file.write(str(j) + ' ' + str(risk) + '\n')
                     #     if previous_value != curr_value:
-                    #         if risks[i_r] < best_cut.empirical_risk - EPSILON:
-                    #             # print('HALO', attribute, i)
+                    #         if risk < best_cut.empirical_risk - EPSILON:
+                    #             # print(j, previous_value, curr_value, risk)
                     #             best_cut.direction = 1
                     #             best_cut.value = (previous_value + curr_value) / 2
-                    #             best_cut.empirical_risk = risks[i_r]
+                    #             best_cut.empirical_risk = risk
                     #             best_cut.exists = True
+                                #######################
+                    # del indices_to_check[-1] # TOCHECK
+                    # risks = [0]
+                    # for added_risk, _, _, _ in empirical_risks[::-1]:
+                    #     risks.append(risks[-1] + added_risk)
+                    # del risks[0]
+                    # for i_ri, ri in enumerate(risks):
+                    #     if len(self.rules) == 1: self.file.write(f"{i_ri} {ri}\n")
+                    # # self.file.write(f"koniec\n")
+                    #
+                    # for i in indices_to_check:
+                    #     risk = risks[i]
+                    #     _, previous_value, curr_value, _ = empirical_risks[i]
+                    #     if previous_value != curr_value:
+                    #         if risk < best_cut.empirical_risk - EPSILON:
+                    #             best_cut.direction = 1
+                    #             best_cut.value = (previous_value + curr_value) / 2
+                    #             best_cut.empirical_risk = risk
+                    #             best_cut.exists = True
+
 
             elif self.optimized_searching_for_cut == 1:
                 if len(empirical_risks) == 0:
@@ -388,7 +397,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
                             temp_empirical_risk, added_risk = self.compute_current_empirical_risk_optimized(
                                 curr_position, self.covered_instances[curr_position] * weight)
-                            file.write(str(i) + ' ' + str(temp_empirical_risk) + '\n')
+                            # if len(self.rules) == 1: self.file.write('t;' + str(i) + ';' + str(temp_empirical_risk) + '\n')
                             empirical_risks.append([added_risk, previous_value, curr_value])
                             current_class = self.y[curr_position]
                             # if previous_class != current_class: print(i, temp_empirical_risk, previous_value, curr_value)
@@ -447,7 +456,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         # from pprint import pprint
         # pprint(vars(best_cut))
         # raise
-        file.close()
         return best_cut
 
     def mark_covered_instances(self, best_attribute, cut):

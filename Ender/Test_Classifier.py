@@ -16,12 +16,12 @@ from multiprocessing import Pool
 
 if __name__ == "__main__":
     RANDOM_STATE = 42
-    n_rules = 5
+    n_rules = 50
     use_gradient = True
     # use_gradient = False
     optimized_searching_for_cut = 0  # Standard
     optimized_searching_for_cut = 1  # Quicker
-    optimized_searching_for_cut = 2  # The quickest
+    # optimized_searching_for_cut = 2  # The quickest
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
@@ -32,10 +32,10 @@ if __name__ == "__main__":
     # dataset = 'haberman'
     # dataset = 'liver'
     # dataset = 'breast-c'
-    dataset = 'spambase'
+    # dataset = 'spambase'
 
     nu = .5
-    sampling = 1
+    sampling = .5
     # sampling = 1
 
     params = {
@@ -63,10 +63,15 @@ if __name__ == "__main__":
         if TRAIN_NEW:
             ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling, random_state=RANDOM_STATE)
             # ender.pool = Pool()
+
+            FILENAME = f'log{optimized_searching_for_cut}.txt'
+            # file = open(FILENAME, 'w')
+            # ender.file = file
             time_started = time()
             # ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
             ender.fit(X_train, y_train)
             time_elapsed = round(time() - time_started, 2)
+            # file.close()
             mlflow.log_metric("Training time", time_elapsed)
             print(f"Rules created in {time_elapsed} s.")
             time_started = time()
