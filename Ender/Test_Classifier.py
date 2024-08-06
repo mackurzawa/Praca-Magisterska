@@ -16,7 +16,7 @@ from multiprocessing import Pool
 
 if __name__ == "__main__":
     RANDOM_STATE = 42
-    n_rules = 50
+    n_rules = 100
     use_gradient = True
     # use_gradient = False
     optimized_searching_for_cut = 0  # Standard
@@ -25,18 +25,17 @@ if __name__ == "__main__":
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
-    dataset = 'apple'
-    # dataset = 'wine'
-    # dataset = 'bank'
+    dataset = 'apple'  # to samo dla 3 searching przy 500 regułach
+    # dataset = 'wine'  # inaczej
     ##########
-    # dataset = 'haberman'
+    # dataset = 'haberman' #inaczej
     # dataset = 'liver'
-    # dataset = 'breast-c'
-    # dataset = 'spambase'
+    # dataset = 'breast-c' # inaczej
+    # dataset = 'spambase' # inaczej
 
     nu = .5
-    sampling = .5
-    # sampling = 1
+    # sampling = .5
+    sampling = 1
 
     params = {
         "Classification": True,
