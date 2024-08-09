@@ -15,24 +15,26 @@ from multiprocessing import Pool
 
 
 if __name__ == "__main__":
-    n_rules = 10
-    # use_gradient = True
-    use_gradient = False
-    # optimized_searching_for_cut = True
-    optimized_searching_for_cut = False
+    RANDOM_STATE = 42
+    n_rules = 100
+    use_gradient = True
+    # use_gradient = False
+    optimized_searching_for_cut = 0  # Standard
+    optimized_searching_for_cut = 1  # Quicker
+    # optimized_searching_for_cut = 2  # The quickest
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
-    # dataset = 'apple'
-    dataset = 'wine'
-    # dataset = 'bank'
+    dataset = 'apple'  # to samo dla 3 searching przy 500 regułach
+    # dataset = 'wine'  # inaczej
     ##########
-    # dataset = 'haberman'
+    # dataset = 'haberman' #inaczej
     # dataset = 'liver'
-    # dataset = 'breast-c'
-    # dataset = 'spambase'
+    # dataset = 'breast-c' # inaczej
+    # dataset = 'spambase' # inaczej
 
     nu = .5
+    # sampling = .5
     sampling = 1
 
     params = {
@@ -48,16 +50,27 @@ if __name__ == "__main__":
         mlflow.log_params(params)
 
         X, y = prepare_dataset(dataset)
+        # print(X)
+        # print(y)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
+        X_train = X
+        X_test = []
+        y_train = y
+        y_test = []
         if TRAIN_NEW:
-            ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling)
-            ender.pool = Pool()
+            ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling, random_state=RANDOM_STATE)
+            # ender.pool = Pool()
+
+            FILENAME = f'log{optimized_searching_for_cut}.txt'
+            # file = open(FILENAME, 'w')
+            # ender.file = file
             time_started = time()
             # ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
-            ender.fit(X, y, X_test=X_test, y_test=y_test)
+            ender.fit(X_train, y_train)
             time_elapsed = round(time() - time_started, 2)
+            # file.close()
             mlflow.log_metric("Training time", time_elapsed)
             print(f"Rules created in {time_elapsed} s.")
             time_started = time()
@@ -73,10 +86,10 @@ if __name__ == "__main__":
                 ender = pickle.load(f)
 
         y_train_preds = ender.predict(X_train, use_effective_rules=False)
-        y_test_preds = ender.predict(X_test, use_effective_rules=False)
         final_metrics_train = calculate_all_metrics(y_train, y_train_preds)
-        final_metrics_test = calculate_all_metrics(y_test, y_test_preds)
         print("Before pruning train:", final_metrics_train)
+        y_test_preds = ender.predict(X_test, use_effective_rules=False)
+        final_metrics_test = calculate_all_metrics(y_test, y_test_preds)
         print("Before pruning test: ", final_metrics_test)
         mlflow.log_metric("Last Accuracy Train", final_metrics_train['accuracy'])
         mlflow.log_metric("Last Accuracy Test", final_metrics_test['accuracy'])

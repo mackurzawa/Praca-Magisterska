@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/169d3a7ba2084351a03a67191314a41e/artifacts
+end_time: 1721855789885
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 169d3a7ba2084351a03a67191314a41e
+run_name: capable-auk-759
+run_uuid: 169d3a7ba2084351a03a67191314a41e
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1721855783141
+status: 4
+tags: []
+user_id: Maciej

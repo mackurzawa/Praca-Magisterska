@@ -9,17 +9,18 @@ from time import time
 #######################
 # dataset = 'haberman'
 # dataset = 'liver'
-# dataset = 'breast-c'
-dataset = 'spambase'
+dataset = 'breast-c'
+# dataset = 'spambase'
 
 X, y = prepare_dataset(dataset)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-X_train = X_train.to_numpy()
+X_train = X_train.to_numpy().astype('float')
 X_test = X_test.to_numpy()
 
 rf = RuleFitClassifier()
 
 time_started = time()
+print(X_train)
 rf.fit(X_train, y_train, feature_names=X.columns)
 time_elapsed = time() - time_started
 print(f'Time elapsed: {time_elapsed}')
