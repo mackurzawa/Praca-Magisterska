@@ -3,6 +3,9 @@ import random
 import numpy as np
 from collections import Counter
 from copy import deepcopy
+from tqdm import tqdm
+from matplotlib import pyplot as plt
+import os
 
 import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
@@ -66,6 +69,8 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         self.max_k = None
         self.effective_rules = None
 
+        plt.style.use('ggplot')
+
     def fit(self, X, y, X_test=None, y_test=None):
         self.attribute_names = X.columns
         X, y = check_X_y(X, y)
@@ -100,7 +105,7 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
             if self.verbose:
                 print('####################################################################################')
                 print(f"Rule: {i_rule + 1}")
-            print(f"Rule: {i_rule + 1}")
+            # print(f"Rule: {i_rule + 1}")
             self.covered_instances = self.resampling()
             rule = self.create_rule()
 
@@ -194,26 +199,26 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         else:
             return None
 
-    def calculate_current_optimized_cuts(self):
-        self.indices_for_better_cuts = {}
-        print(np.array(self.covered_instances) == 1)
-        y_2d = self.y[np.array(self.covered_instances) == 1]
-        print(y_2d)
-        # raise
-        for i_attr, indices_in_order in enumerate(self.inverted_list):
-            self.indices_for_better_cuts[i_attr] = []
-
-            for i_index in range(len(indices_in_order) - 1):
-                if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]]:
-                    self.indices_for_better_cuts[i_attr].append([i_index, i_index + 1])
-        print(self.indices_for_better_cuts)
-        suma = 0
-        for key in self.indices_for_better_cuts.keys():
-            print(f"Key: {key} {len(self.indices_for_better_cuts[key])}")
-            suma += len(self.indices_for_better_cuts[key])
-        print(f"Out of {len(self.inverted_list[0])}")
-        print(f'now sum: {suma}')
-        print(f'old sum: {len(self.inverted_list[0]) * len(self.inverted_list)}')
+    # def calculate_current_optimized_cuts(self):
+    #     self.indices_for_better_cuts = {}
+    #     print(np.array(self.covered_instances) == 1)
+    #     y_2d = self.y[np.array(self.covered_instances) == 1]
+    #     print(y_2d)
+    #     # raise
+    #     for i_attr, indices_in_order in enumerate(self.inverted_list):
+    #         self.indices_for_better_cuts[i_attr] = []
+    #
+    #         for i_index in range(len(indices_in_order) - 1):
+    #             if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]]:
+    #                 self.indices_for_better_cuts[i_attr].append([i_index, i_index + 1])
+    #     print(self.indices_for_better_cuts)
+    #     suma = 0
+    #     for key in self.indices_for_better_cuts.keys():
+    #         print(f"Key: {key} {len(self.indices_for_better_cuts[key])}")
+    #         suma += len(self.indices_for_better_cuts[key])
+    #     print(f"Out of {len(self.inverted_list[0])}")
+    #     print(f'now sum: {suma}')
+    #     print(f'old sum: {len(self.inverted_list[0]) * len(self.inverted_list)}')
 
     def find_best_cut(self, attribute):
         best_cut = Cut()
@@ -380,23 +385,23 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         temp = self.inverted_list.copy()
         temp = np.array([[self.y[temp[i][j]] for j in range(len(temp[0]))] for i in range(len(temp))])
         # print(temp)
-        if self.optimized_searching_for_cut:
-            self.bucket_affiliation = np.zeros((len(self.X), len(self.X[0])), dtype=int)
-            self.thresholds = {}
-            self.statistics = {}
+        
+        self.bucket_affiliation = np.zeros((len(self.X), len(self.X[0])), dtype=int)
+        self.thresholds = {}
+        self.statistics = {}
 
-            for i_attr, indices_in_order in enumerate(self.inverted_list):
-                bucket_number = 0
-                self.thresholds[i_attr] = []
-                for i_index in range(len(indices_in_order) - 1):
-                    self.bucket_affiliation[self.inverted_list[i_attr][i_index]][i_attr] = bucket_number
-                    if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]] and self.X[self.inverted_list[i_attr][i_index]][i_attr] < self.X[self.inverted_list[i_attr][i_index + 1]][i_attr] - EPSILON:
-                        bucket_number += 1
-                        self.thresholds[i_attr].append((self.X[self.inverted_list[i_attr][i_index]][i_attr] + self.X[self.inverted_list[i_attr][i_index + 1]][i_attr]) / 2)
-                self.bucket_affiliation[self.inverted_list[i_attr][-1]][i_attr] = bucket_number
-                self.statistics[i_attr] = [0 for _ in range(bucket_number+1)]
-            print(self.bucket_affiliation)
-            self.initialize_statistics = copy.copy(self.statistics)
+        for i_attr, indices_in_order in enumerate(self.inverted_list):
+            bucket_number = 0
+            self.thresholds[i_attr] = []
+            for i_index in range(len(indices_in_order) - 1):
+                self.bucket_affiliation[self.inverted_list[i_attr][i_index]][i_attr] = bucket_number
+                if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]] and self.X[self.inverted_list[i_attr][i_index]][i_attr] < self.X[self.inverted_list[i_attr][i_index + 1]][i_attr] - EPSILON:
+                    bucket_number += 1
+                    self.thresholds[i_attr].append((self.X[self.inverted_list[i_attr][i_index]][i_attr] + self.X[self.inverted_list[i_attr][i_index + 1]][i_attr]) / 2)
+            self.bucket_affiliation[self.inverted_list[i_attr][-1]][i_attr] = bucket_number
+            self.statistics[i_attr] = [0 for _ in range(bucket_number+1)]
+        # print(self.bucket_affiliation)
+        self.initialize_statistics = copy.copy(self.statistics)
 
     def update_value_of_f(self, decision):
         for i in range(len(self.X)):
@@ -528,8 +533,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
     def filter_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
         from sklearn.feature_selection import chi2, f_classif, mutual_info_classif
-        import matplotlib.pyplot as plt
-        import os
 
         print("\tChi 2:")
         chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix_train,
@@ -573,9 +576,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         return
 
     def my_idea_wrapper_pruning(self, verbose=True, **kwargs):
-        from tqdm import tqdm
-        from matplotlib import pyplot as plt
-        import os
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -652,9 +652,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         return
 
     def wrapper_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
-        from tqdm import tqdm
-        from matplotlib import pyplot as plt
-        import os
         from sklearn.linear_model import LogisticRegression
 
         X_train = kwargs['x_tr']
@@ -771,7 +768,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
     def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.linear_model import LogisticRegression
-        from tqdm import tqdm
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']

@@ -16,7 +16,7 @@ from multiprocessing import Pool
 
 if __name__ == "__main__":
     RANDOM_STATE = 42
-    n_rules = 10
+    n_rules = 100
     use_gradient = True
     # use_gradient = False
     optimized_searching_for_cut = 0  # Standard
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     dataset = 'apple'  # to samo dla 3 searching przy 500 regułach
     # dataset = 'wine'  # inaczej
     ##########
-    dataset = 'haberman' #inaczej
+    # dataset = 'haberman' #inaczej
     # dataset = 'liver'
     # dataset = 'breast-c' # inaczej
     # dataset = 'spambase' # inaczej
@@ -53,12 +53,12 @@ if __name__ == "__main__":
         # print(X)
         # print(y)
 
-        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
-        X_train = X
-        X_test = []
-        y_train = y
-        y_test = []
+        # X_train = X
+        # X_test = []
+        # y_train = y
+        # y_test = []
         if TRAIN_NEW:
             ender = EnderClassifierFastMyImplementation(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling, random_state=RANDOM_STATE)
             # ender.pool = Pool()
@@ -67,8 +67,8 @@ if __name__ == "__main__":
             # file = open(FILENAME, 'w')
             # ender.file = file
             time_started = time()
-            # ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
-            ender.fit(X_train, y_train)
+            ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
+            # ender.fit(X_train, y_train)
             time_elapsed = round(time() - time_started, 2)
             # file.close()
             mlflow.log_metric("Training time", time_elapsed)

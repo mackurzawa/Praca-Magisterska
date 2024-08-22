@@ -53,12 +53,12 @@ if __name__ == "__main__":
         # print(X)
         # print(y)
 
-        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
-        X_train = X
-        X_test = []
-        y_train = y
-        y_test = []
+        # X_train = X
+        # X_test = []
+        # y_train = y
+        # y_test = []
         if TRAIN_NEW:
             ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient, optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling, random_state=RANDOM_STATE)
             # ender.pool = Pool()
@@ -67,8 +67,8 @@ if __name__ == "__main__":
             # file = open(FILENAME, 'w')
             # ender.file = file
             time_started = time()
-            # ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
-            ender.fit(X_train, y_train)
+            ender.fit(X_train, y_train, X_test=X_test, y_test=y_test)
+            # ender.fit(X_train, y_train)
             time_elapsed = round(time() - time_started, 2)
             # file.close()
             mlflow.log_metric("Training time", time_elapsed)
@@ -97,10 +97,10 @@ if __name__ == "__main__":
         mlflow.log_metric("Max Accuracy Test", max(ender.history['accuracy_test']))
 
         pruning_methods = {
-            'Filter': None,
+            # 'Filter': None,
+            # 'Wrapper': None,
+            # 'Embedded': None,
             'MyIdeaWrapper': None,
-            'Wrapper': None,
-            'Embedded': None,
         }
         for pruning_regressor, alpha in pruning_methods.items():
             print()
