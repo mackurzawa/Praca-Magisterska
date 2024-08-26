@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
-import seaborn as sns
+# import seaborn as sns
 import numpy as np
 import os
 
 
 def create_box_plot(ender, ender_fast, dataset):
+    print(np.mean(ender), np.mean(ender_fast))
+
     min_val = min(min(ender), min(ender_fast))
     max_val = max(max(ender), max(ender_fast))
 

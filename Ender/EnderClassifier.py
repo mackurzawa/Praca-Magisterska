@@ -717,7 +717,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         from sklearn.feature_selection import chi2, f_classif, mutual_info_classif
 
         print("\tChi 2:")
-        time_started = time.time()
+        # time_started = time.time()
         chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix_train,
                                                                        rule_feature_matrix_test, **kwargs)
 
@@ -731,26 +731,27 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                                                                                      rule_feature_matrix_test, **kwargs)
 
         if verbose:
-            plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules + 1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset',
-                     c='g')
-            plt.plot(list(range(self.n_rules + 1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset',
+            plt.figure(figsize=(14, 10))
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), chi2_train_acc, label='Pruned rules Filter Chi-squared, train dataset',
+                     c='r')
+            plt.plot(list(range(self.n_rules + 1)), anova_train_acc, label='Pruned rules Filter ANOVA, train dataset',
                      c='y')
             plt.plot(list(range(self.n_rules + 1)), mutual_info_train_acc,
-                     label='Pruned rules Filter Mutual_Info, train dataset', c='k')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Pruned rules Filter Mutual info, train dataset', c='k')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset',
-                     c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset',
+            plt.plot(list(range(self.n_rules + 1)), chi2_test_acc, label='Pruned rules Filter Chi-squared, test dataset',
+                     c='r', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), anova_test_acc, label='Pruned rules Filter ANOVA, test dataset',
                      c='y', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), mutual_info_test_acc,
-                     label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
+                     label='Pruned rules Filter Mutual info, test dataset', c='k', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
+            plt.title('Comparison Between Filter Methods Against Baseline Rules', wrap=True)
+            plt.tight_layout()
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -768,66 +769,70 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         y_test = kwargs['y_te']
         # UPWARD
         print("\tUpward")
-        rules_indices_upward = []
-        train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
-        test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
-        for _ in tqdm(range(self.n_rules)):
-            max_acc = -1
-            max_acc_index = -1
-            for i in range(self.n_rules):
-                if i in rules_indices_upward:
-                    continue
-                y_preds = self.predict_with_specific_rules(X_train, rules_indices_upward + [i])
-                current_acc = calculate_accuracy(y_train, y_preds)
-                if current_acc > max_acc:
-                    max_acc = current_acc
-                    max_acc_index = i
-            rules_indices_upward.append(max_acc_index)
-            train_acc_upward.append(max_acc)
-            test_acc_upward.append(
-                calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
+        # rules_indices_upward = []
+        # train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        # test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        # for _ in tqdm(range(self.n_rules)):
+        #     max_acc = -1
+        #     max_acc_index = -1
+        #     for i in range(self.n_rules):
+        #         if i in rules_indices_upward:
+        #             continue
+        #         y_preds = self.predict_with_specific_rules(X_train, rules_indices_upward + [i])
+        #         current_acc = calculate_accuracy(y_train, y_preds)
+        #         if current_acc > max_acc:
+        #             max_acc = current_acc
+        #             max_acc_index = i
+        #     rules_indices_upward.append(max_acc_index)
+        #     train_acc_upward.append(max_acc)
+        #     test_acc_upward.append(
+        #         calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
         # DOWNWARD
         print("\tDownward")
-        rules_indices_downward = []
-        train_acc_downward = [calculate_accuracy(y_train, self.predict(X_train, use_effective_rules=False))]
-        test_acc_downward = [calculate_accuracy(y_test, self.predict(X_test, use_effective_rules=False))]
-        indices_in_use = list(range(self.n_rules))
-        for _ in tqdm(range(self.n_rules)):
-            max_acc = 0
-            max_acc_index = -1
-            for rule_index in indices_in_use:
-                temp_indices_in_use = indices_in_use.copy()
-                temp_indices_in_use.remove(rule_index)
-                y_preds = self.predict_with_specific_rules(X_train, temp_indices_in_use)
-                current_acc = calculate_accuracy(y_train, y_preds)
-                if current_acc > max_acc:
-                    max_acc = current_acc
-                    max_acc_index = rule_index
-            indices_in_use.remove(max_acc_index)
-            rules_indices_downward.insert(0, max_acc_index)
-            train_acc_downward.insert(0, max_acc)
-            test_acc_downward.insert(0, calculate_accuracy(y_test,
-                                                           self.predict_with_specific_rules(X_test, indices_in_use)))
+        # rules_indices_downward = []
+        # train_acc_downward = [calculate_accuracy(y_train, self.predict(X_train, use_effective_rules=False))]
+        # test_acc_downward = [calculate_accuracy(y_test, self.predict(X_test, use_effective_rules=False))]
+        # indices_in_use = list(range(self.n_rules))
+        # for _ in tqdm(range(self.n_rules)):
+        #     max_acc = 0
+        #     max_acc_index = -1
+        #     for rule_index in indices_in_use:
+        #         temp_indices_in_use = indices_in_use.copy()
+        #         temp_indices_in_use.remove(rule_index)
+        #         y_preds = self.predict_with_specific_rules(X_train, temp_indices_in_use)
+        #         current_acc = calculate_accuracy(y_train, y_preds)
+        #         if current_acc > max_acc:
+        #             max_acc = current_acc
+        #             max_acc_index = rule_index
+        #     indices_in_use.remove(max_acc_index)
+        #     rules_indices_downward.insert(0, max_acc_index)
+        #     train_acc_downward.insert(0, max_acc)
+        #     test_acc_downward.insert(0, calculate_accuracy(y_test,
+        #                                                    self.predict_with_specific_rules(X_test, indices_in_use)))
 
+        train_acc_upward = [0.50125, 0.7, 0.76375, 0.7825, 0.77875, 0.78875, 0.78875, 0.78875, 0.80375, 0.795, 0.79625, 0.8025, 0.80125, 0.8025, 0.81125, 0.81625, 0.81625, 0.81125, 0.81, 0.81125, 0.81875, 0.8125, 0.8075, 0.8225, 0.83125, 0.82875, 0.835, 0.835, 0.84375, 0.8375, 0.8375, 0.84, 0.835, 0.83625, 0.83625, 0.83625, 0.83875, 0.835, 0.835, 0.8325, 0.825, 0.83875, 0.83625, 0.83875, 0.8425, 0.845, 0.84, 0.8425, 0.8425, 0.84875, 0.84625, 0.83875, 0.84875, 0.85, 0.85125, 0.85375, 0.8475, 0.845, 0.84125, 0.8425, 0.8425, 0.84375, 0.83875, 0.84, 0.8375, 0.8425, 0.84375, 0.8425, 0.84375, 0.84125, 0.8425, 0.8375, 0.83875, 0.835, 0.85, 0.85, 0.8575, 0.85375, 0.85625, 0.865, 0.86375, 0.865, 0.8625, 0.865, 0.86625, 0.85875, 0.8625, 0.86, 0.8675, 0.86125, 0.85875, 0.8575, 0.8625, 0.86375, 0.85875, 0.85625, 0.855, 0.85125, 0.84875, 0.855, 0.8575]
+        test_acc_upward
+        train_acc_downward
+        test_acc_downward
         if verbose:
-            print(f"Rules order up: {rules_indices_upward} Accuracies: {test_acc_upward}")
-            print(f"Rules order down: {rules_indices_downward} Accuracies: {test_acc_downward}")
+            # print(f"Rules order up: {rules_indices_upward} Accuracies: {test_acc_upward}")
+            # print(f"Rules order down: {rules_indices_downward} Accuracies: {test_acc_downward}")
             plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
             plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
-                     label='Pruned rules My Idea Wrapper upward, train dataset', c='g')
+                     label='Proposed forward selection, train dataset', c='g')
             plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
-                     label='Pruned rules My Idea Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Proposed backward elimination, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_upward,
-                     label='Pruned rules My Idea Wrapper upward, test dataset', c='g', linestyle='dashed')
+                     label='Proposed forward selection, test dataset', c='g', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
-                     label='Pruned rules My Idea Wrapper downward, test dataset', c='y', linestyle='dashed')
+                     label='Proposed backward elimination, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nMy idea Wrapper method')
+            plt.title('Comparison Between Proposed Methods Against Baseline Rules')
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -845,103 +850,115 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         y_train = kwargs['y_tr']
         y_test = kwargs['y_te']
         # UPWARD
-        print("\tUpward")
-        rules_indices_upward = []
-        train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
-        test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
-        for _ in tqdm(range(self.n_rules)):
-            max_acc = -1
-            max_acc_index = -1
-            max_classifier = None
-            for i in range(self.n_rules):
-                if i in rules_indices_upward:
-                    continue
-                X_train_new = np.array(rule_feature_matrix_train)[:, rules_indices_upward + [i]]
-
-                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
-                                                random_state=self.random_state)
-                # classifier = svm.SVC(random_state=42)
-
-                classifier.fit(X_train_new, y_train)
-                y_train_preds = classifier.predict(X_train_new)
-
-                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
-
-                if current_acc > max_acc:
-                    max_acc = current_acc
-                    max_acc_index = i
-                    max_classifier = classifier
-            rules_indices_upward.append(max_acc_index)
-            # print('Indices', rules_indices_upward)
-            X_test_new = np.array(rule_feature_matrix_test)[:, rules_indices_upward]
-            y_test_preds = max_classifier.predict(X_test_new)
-            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
-
-            train_acc_upward.append(max_acc)
-            test_acc_upward.append(max_acc_test)
-
-        # DOWNWARD
-        print("\tDownward")
-        rules_indices_downward = []
-        classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=self.random_state)
-        classifier.fit(np.array(rule_feature_matrix_train), y_train)
-        y_train_preds = classifier.predict(np.array(rule_feature_matrix_train))
-        y_test_preds = classifier.predict(np.array(rule_feature_matrix_test))
-        train_acc_downward = [sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)]
-        test_acc_downward = [sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)]
-        indices_in_use = list(range(self.n_rules))
-        for _ in tqdm(range(self.n_rules - 1)):
-            max_acc = 0
-            max_acc_index = -1
-            max_classifier = None
-            for rule_index in indices_in_use:
-                temp_indices_in_use = indices_in_use.copy()
-                temp_indices_in_use.remove(rule_index)
-                X_train_new = np.array(rule_feature_matrix_train)[:, temp_indices_in_use]
-
-                classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
-                                                random_state=self.random_state)
-                # classifier = svm.SVC(random_state=42)
-
-                classifier.fit(X_train_new, y_train)
-                y_train_preds = classifier.predict(X_train_new)
-                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
-
-                if current_acc > max_acc:
-                    max_acc = current_acc
-                    max_acc_index = rule_index
-                    max_classifier = classifier
-
-            indices_in_use.remove(max_acc_index)
-            rules_indices_downward.insert(0, max_acc_index)
-            X_test_new = np.array(rule_feature_matrix_test)[:, indices_in_use]
-            y_test_preds = max_classifier.predict(X_test_new)
-            max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
-
-            train_acc_downward.insert(0, max_acc)
-            test_acc_downward.insert(0, max_acc_test)
-        train_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
-        test_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
+        # print("\tUpward")
+        # rules_indices_upward = []
+        # train_acc_upward = [calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, []))]
+        # test_acc_upward = [calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, []))]
+        # for _ in tqdm(range(self.n_rules)):
+        #     max_acc = -1
+        #     max_acc_index = -1
+        #     max_classifier = None
+        #     for i in range(self.n_rules):
+        #         if i in rules_indices_upward:
+        #             continue
+        #         X_train_new = np.array(rule_feature_matrix_train)[:, rules_indices_upward + [i]]
         #
+        #         classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
+        #                                         random_state=self.random_state)
+        #         # classifier = svm.SVC(random_state=42)
+        #
+        #         classifier.fit(X_train_new, y_train)
+        #         y_train_preds = classifier.predict(X_train_new)
+        #
+        #         current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
+        #
+        #         if current_acc > max_acc:
+        #             max_acc = current_acc
+        #             max_acc_index = i
+        #             max_classifier = classifier
+        #     rules_indices_upward.append(max_acc_index)
+        #     # print('Indices', rules_indices_upward)
+        #     X_test_new = np.array(rule_feature_matrix_test)[:, rules_indices_upward]
+        #     y_test_preds = max_classifier.predict(X_test_new)
+        #     max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
+        #
+        #     train_acc_upward.append(max_acc)
+        #     test_acc_upward.append(max_acc_test)
+        #
+        # # DOWNWARD
+        # print("\tDownward")
+        # rules_indices_downward = []
+        # classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=self.random_state)
+        # classifier.fit(np.array(rule_feature_matrix_train), y_train)
+        # y_train_preds = classifier.predict(np.array(rule_feature_matrix_train))
+        # y_test_preds = classifier.predict(np.array(rule_feature_matrix_test))
+        # train_acc_downward = [sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)]
+        # test_acc_downward = [sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)]
+        # indices_in_use = list(range(self.n_rules))
+        # for _ in tqdm(range(self.n_rules - 1)):
+        #     max_acc = 0
+        #     max_acc_index = -1
+        #     max_classifier = None
+        #     for rule_index in indices_in_use:
+        #         temp_indices_in_use = indices_in_use.copy()
+        #         temp_indices_in_use.remove(rule_index)
+        #         X_train_new = np.array(rule_feature_matrix_train)[:, temp_indices_in_use]
+        #
+        #         classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
+        #                                         random_state=self.random_state)
+        #         # classifier = svm.SVC(random_state=42)
+        #
+        #         classifier.fit(X_train_new, y_train)
+        #         y_train_preds = classifier.predict(X_train_new)
+        #         current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
+        #
+        #         if current_acc > max_acc:
+        #             max_acc = current_acc
+        #             max_acc_index = rule_index
+        #             max_classifier = classifier
+        #
+        #     indices_in_use.remove(max_acc_index)
+        #     rules_indices_downward.insert(0, max_acc_index)
+        #     X_test_new = np.array(rule_feature_matrix_test)[:, indices_in_use]
+        #     y_test_preds = max_classifier.predict(X_test_new)
+        #     max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
+        #
+        #     train_acc_downward.insert(0, max_acc)
+        #     test_acc_downward.insert(0, max_acc_test)
+        # train_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
+        # test_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
+        #
+        rules_indices_upward = [45, 55, 6, 99, 52, 4, 81, 64, 72, 40, 53, 73, 67, 13, 95, 89, 62, 85, 15, 7, 68, 19, 5, 49, 61, 63, 71, 66, 46, 2, 43, 33, 44, 22, 92, 0, 70, 11, 9, 20, 75, 34, 48, 58, 59, 88, 65, 41, 25, 24, 35, 82, 77, 27, 18, 78, 74, 98, 29, 47, 38, 54, 17, 51, 14, 50, 16, 86, 96, 87, 21, 39, 80, 28, 1, 32, 12, 91, 36, 30, 10, 57, 84, 8, 93, 31, 94, 79, 83, 56, 23, 3, 42, 97, 76, 60, 69, 26, 90, 37]
+        test_acc_upward = [0.50125, 0.695, 0.7125, 0.7625, 0.78375, 0.8125, 0.81125, 0.815, 0.8125, 0.81625, 0.8125, 0.7975, 0.7975, 0.82375, 0.8225, 0.82125, 0.82625, 0.82375, 0.82375, 0.82375, 0.82625, 0.81875, 0.81875, 0.82, 0.81625, 0.8225, 0.8375, 0.8325, 0.83375, 0.83875, 0.84375, 0.84125, 0.84125, 0.84375, 0.83625, 0.84375, 0.8375, 0.8375, 0.84, 0.83875, 0.84125, 0.84, 0.84, 0.84, 0.84, 0.84125, 0.84375, 0.845, 0.845, 0.8475, 0.845, 0.8475, 0.85, 0.85375, 0.85375, 0.8525, 0.85125, 0.84625, 0.845, 0.84875, 0.84875, 0.84875, 0.85125, 0.85, 0.85, 0.8425, 0.83625, 0.83625, 0.83625, 0.83625, 0.84125, 0.84, 0.83875, 0.8375, 0.84375, 0.845, 0.845, 0.84125, 0.8375, 0.8375, 0.84125, 0.8425, 0.84, 0.83125, 0.83, 0.83125, 0.835, 0.83, 0.83, 0.82625, 0.82375, 0.83, 0.82875, 0.8275, 0.83125, 0.83, 0.83125, 0.83, 0.83875, 0.84375, 0.83875]
+        train_acc_upward = [0.5009375, 0.7115625, 0.74125, 0.7803125, 0.7971875, 0.81, 0.8278125, 0.83375, 0.8396875, 0.8425, 0.8525, 0.86, 0.8659375, 0.8671875, 0.870625, 0.8740625, 0.87625, 0.8775, 0.8778125, 0.8778125, 0.8775, 0.8775, 0.88, 0.880625, 0.8809375, 0.88125, 0.883125, 0.8834375, 0.885, 0.8875, 0.890625, 0.8928125, 0.8953125, 0.8975, 0.9, 0.9025, 0.904375, 0.9071875, 0.9103125, 0.9103125, 0.910625, 0.9115625, 0.911875, 0.911875, 0.911875, 0.9115625, 0.913125, 0.9134375, 0.9128125, 0.9134375, 0.9121875, 0.9128125, 0.915625, 0.9159375, 0.91625, 0.9159375, 0.915625, 0.9159375, 0.919375, 0.92, 0.920625, 0.92, 0.92, 0.9203125, 0.92, 0.9190625, 0.9209375, 0.920625, 0.92, 0.9225, 0.9253125, 0.9253125, 0.925625, 0.9246875, 0.9253125, 0.9259375, 0.92625, 0.92625, 0.9259375, 0.92625, 0.925625, 0.925625, 0.9259375, 0.9275, 0.9271875, 0.92625, 0.92625, 0.9259375, 0.9290625, 0.92875, 0.9303125, 0.9303125, 0.93125, 0.930625, 0.93125, 0.9315625, 0.9315625, 0.9309375, 0.93, 0.9303125, 0.92875]
+
+
+        rules_indices_downward = [55, 84, 89, 97, 46, 80, 71, 51, 64, 96, 26, 90, 48, 25, 81, 74, 43, 49, 83, 22, 59, 54, 60, 98, 53, 70, 6, 63, 78, 82, 85, 94, 87, 10, 61, 42, 0, 50, 66, 77, 40, 75, 92, 88, 79, 36, 86, 69, 41, 24, 73, 23, 72, 12, 1, 11, 99, 7, 95, 20, 91, 27, 38, 5, 28, 58, 30, 56, 15, 44, 65, 57, 18, 39, 47, 33, 52, 35, 31, 93, 29, 14, 62, 17, 4, 13, 34, 21, 16, 9, 8, 68, 32, 76, 3, 2, 19, 37, 67]
+        test_acc_downward = [0.5009375, 0.695, 0.7125, 0.72625, 0.74875, 0.74875, 0.7675, 0.76875, 0.75875, 0.765, 0.79, 0.78125, 0.78, 0.775, 0.77125, 0.79625, 0.805, 0.8125, 0.80375, 0.81375, 0.8125, 0.81875, 0.81875, 0.815, 0.82375, 0.825, 0.81875, 0.82125, 0.825, 0.83, 0.83125, 0.82875, 0.82625, 0.82125, 0.82, 0.81875, 0.82, 0.82125, 0.82375, 0.82625, 0.82625, 0.82875, 0.82375, 0.8275, 0.83625, 0.83375, 0.835, 0.8325, 0.8325, 0.8325, 0.83375, 0.8375, 0.83375, 0.83625, 0.83375, 0.83625, 0.835, 0.8375, 0.8375, 0.83125, 0.82875, 0.83, 0.83, 0.83375, 0.8375, 0.8375, 0.8375, 0.8375, 0.83625, 0.83375, 0.83625, 0.83375, 0.835, 0.83625, 0.83625, 0.83125, 0.83125, 0.83, 0.83375, 0.835, 0.835, 0.835, 0.835, 0.835, 0.83625, 0.83625, 0.835, 0.835, 0.83, 0.83, 0.83, 0.83, 0.83125, 0.83, 0.8325, 0.8325, 0.83375, 0.83375, 0.83375, 0.835, 0.83875]
+        train_acc_downward = [0.5009375, 0.7115625, 0.74125, 0.7659375, 0.7878125, 0.7878125, 0.805625, 0.808125, 0.8178125, 0.8296875, 0.8359375, 0.8428125, 0.8496875, 0.8540625, 0.859375, 0.8678125, 0.8709375, 0.875, 0.87875, 0.881875, 0.8865625, 0.890625, 0.8934375, 0.89875, 0.8996875, 0.9021875, 0.9053125, 0.90875, 0.91125, 0.91375, 0.9140625, 0.9159375, 0.9178125, 0.9184375, 0.919375, 0.920625, 0.9203125, 0.9215625, 0.923125, 0.924375, 0.9265625, 0.9275, 0.9290625, 0.929375, 0.9309375, 0.93125, 0.930625, 0.933125, 0.931875, 0.9328125, 0.9346875, 0.9340625, 0.9340625, 0.933125, 0.9334375, 0.9328125, 0.93375, 0.9340625, 0.9334375, 0.935, 0.935, 0.935625, 0.9353125, 0.9340625, 0.9340625, 0.9334375, 0.934375, 0.934375, 0.935, 0.9353125, 0.9353125, 0.935625, 0.9359375, 0.935625, 0.935625, 0.935625, 0.9359375, 0.9359375, 0.935625, 0.9359375, 0.93625, 0.93625, 0.9365625, 0.9365625, 0.93625, 0.93625, 0.93625, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.935625, 0.9346875, 0.9340625, 0.9340625, 0.9340625, 0.9328125, 0.93125, 0.92875]
+
         if verbose:
-            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
-            print(f"Rules order: {rules_indices_downward} Accuracies: {test_acc_downward}")
-            plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            print("history train", self.history['accuracy'])
+            print("history test", self.history['accuracy_test'])
+            print(f"Rules order: {rules_indices_upward} Accuracies test: {test_acc_upward}, Accuracies train: {train_acc_upward}")
+            print(f"Rules order: {rules_indices_downward} Accuracies test: {test_acc_downward}, Accuracies train {train_acc_downward}")
+            plt.figure(figsize=(14, 10))
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
             plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
-                     label='Pruned rules Wrapper upward, train dataset', c='g')
+                     label='Forward selection, train dataset', c='g')
             plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
-                     label='Pruned rules Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Backward elimination, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset',
+            plt.plot(list(range(self.n_rules + 1)), test_acc_upward, label='Forward selection, test dataset',
                      c='g', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
-                     label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
+                     label='Backward elimination, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
+            plt.title('Comparison Between Wrapper Methods Against Baseline Rules', wrap=True)
+            plt.tight_layout()
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -989,18 +1006,22 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         alphas = [0] + alphas
         fig, ax = plt.subplots(1, 3, figsize=(21, 7))
-        ax[0].set_title("Regularization (C) vs rule number")
+        ax[0].set_title("Impact of Regularization\non Ensemble Size", wrap=True)
         ax[0].plot(alphas, active_rule_number)
         ax[0].scatter(alphas, active_rule_number)
         ax[0].set_xscale('log')
+        ax[0].set_xlabel('1/λ')
+        ax[0].set_ylabel("Rules in ensemble")
         ###
-        ax[1].set_title('Regularization (C) vs accuracy')
+        ax[1].set_title('Impact of Regularization\non Accuracy', wrap=True)
         ax[1].plot(alphas, train_acc, label='Train accuracy')
         ax[1].plot(alphas, test_acc, label='Test accuracy')
         ax[1].set_xscale('log')
+        ax[1].set_xlabel('1/λ')
+        ax[1].set_ylabel("Accuracy")
         ax[1].legend()
         ###
-        ax[2].set_title("Rule number vs accuracy")
+        ax[2].set_title("Relationship Between Ensemble Size\nand Accuracy", wrap=True)
         ax[2].plot(range(self.n_rules + 1), self.history['accuracy'], label='Old rules, Train dataset', c='b')
         ax[2].plot(range(self.n_rules + 1), self.history['accuracy_test'], label='Old rules, Test dataset', c='b',
                    linestyle='dashed')
@@ -1009,6 +1030,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         ax[2].scatter(active_rule_number, train_acc, c='r')
         ax[2].scatter(active_rule_number, test_acc, c='r')
         ax[2].legend()
+        ax[2].set_xlabel('Rules in the ensemble')
+        ax[2].set_ylabel("Accuracy")
+        plt.tight_layout()
         plt.savefig(
             os.path.join('Plots',
                          'Pruning',

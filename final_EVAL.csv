@@ -1,0 +1,2 @@
+Model,Dataset,Seed,No_crossvalidation,Time training,Train Accuracy,Train Accuracy Rule Number,Test Accuracy,Test Accuracy Rule Number,Train F1,Train F1 Rule Number,Test F1,Test F1 Rule Number,Number of Rules
+Ender_Gradient,haberman,42,-,1.131423044204712,0.8145600535296087,,0.7841882601797991,,0.561795745325157,,0.4381139100779281,,100
