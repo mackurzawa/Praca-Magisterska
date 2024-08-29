@@ -1,14 +1,11 @@
 from ucimlrepo import fetch_ucirepo
-import pandas as pd
 import os
 
-# fetch dataset
-# liver_disorders = fetch_ucirepo(id=14)
-liver_disorders = fetch_ucirepo(id=94)
+repo = fetch_ucirepo(id=45)
 
 # data (as pandas dataframes)
-X = liver_disorders.data.features
-y = liver_disorders.data.targets
+X = repo.data.features
+y = repo.data.targets
 
 print(X)
 # X.to_csv('SpamBase_X.csv', index=False)
@@ -20,4 +17,4 @@ data['y'] = y
 
 print(data)
 
-data.to_csv(os.path.join('..', 'data', 'Classification SpamBase.csv'), index=False)
+data.to_csv(os.path.join('..', 'data', 'Regression .csv'), index=False)

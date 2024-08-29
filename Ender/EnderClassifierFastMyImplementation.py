@@ -3,8 +3,10 @@ import random
 import numpy as np
 from collections import Counter
 from copy import deepcopy
+from tqdm import tqdm
+from matplotlib import pyplot as plt
+import os
 
-import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.metrics import accuracy_score
@@ -15,13 +17,12 @@ from CalculateMetrics import calculate_all_metrics, calculate_accuracy
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
-# nu = 0.8
 R = 5
 Rp = 1e-5
 EPSILON = 10e-5
 
 
-class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # RegressorMixin
+class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):
     pool = None
 
     def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=False, nu=1,
@@ -66,6 +67,8 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         self.max_k = None
         self.effective_rules = None
 
+        plt.style.use('ggplot')
+
     def fit(self, X, y, X_test=None, y_test=None):
         self.attribute_names = X.columns
         X, y = check_X_y(X, y)
@@ -96,11 +99,9 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         if self.verbose: print("Default rule:", self.default_rule)
         i_rule = 0
         while i_rule < self.n_rules:
-            # for i_rule in range(self.n_rules):
             if self.verbose:
                 print('####################################################################################')
                 print(f"Rule: {i_rule + 1}")
-            print(f"Rule: {i_rule + 1}")
             self.covered_instances = self.resampling()
             rule = self.create_rule()
 
@@ -167,7 +168,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
                 rule.add_condition(best_attribute, best_cut.value, best_cut.direction,
                                    self.attribute_names[best_attribute])
                 self.mark_covered_instances(best_attribute, best_cut)
-        # raise
         if best_cut.exists:
 
             decision = self.compute_decision()
@@ -194,27 +194,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         else:
             return None
 
-    def calculate_current_optimized_cuts(self):
-        self.indices_for_better_cuts = {}
-        print(np.array(self.covered_instances) == 1)
-        y_2d = self.y[np.array(self.covered_instances) == 1]
-        print(y_2d)
-        # raise
-        for i_attr, indices_in_order in enumerate(self.inverted_list):
-            self.indices_for_better_cuts[i_attr] = []
-
-            for i_index in range(len(indices_in_order) - 1):
-                if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]]:
-                    self.indices_for_better_cuts[i_attr].append([i_index, i_index + 1])
-        print(self.indices_for_better_cuts)
-        suma = 0
-        for key in self.indices_for_better_cuts.keys():
-            print(f"Key: {key} {len(self.indices_for_better_cuts[key])}")
-            suma += len(self.indices_for_better_cuts[key])
-        print(f"Out of {len(self.inverted_list[0])}")
-        print(f'now sum: {suma}')
-        print(f'old sum: {len(self.inverted_list[0]) * len(self.inverted_list)}')
-
     def find_best_cut(self, attribute):
         best_cut = Cut()
         best_cut.position = -1
@@ -235,16 +214,11 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
                 best_cut.value = self.thresholds[attribute][i-1]
                 best_cut.empirical_risk = -abs(gradient_left)
                 best_cut.exists = True
-                # print('halo')
-                # print(attribute, best_cut.value, best_cut.empirical_risk, "LE")
             if -abs(gradient_right) < best_cut.empirical_risk - EPSILON:
                 best_cut.direction = GREATER_EQUAL
                 best_cut.value = self.thresholds[attribute][i-1]
                 best_cut.empirical_risk = -abs(gradient_right)
                 best_cut.exists = True
-                # print('halo')
-                # print(attribute, best_cut.value, best_cut.empirical_risk, "GR")
-            # print(attribute, i)
             gradient_left += self.statistics[attribute][i]
             gradient_right -= self.statistics[attribute][i]
 
@@ -258,16 +232,12 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
     def mark_covered_instances(self, best_attribute, cut):
         new_covered_instances = []
-        # print(self.covered_instances)
         for i in range(len(self.X)):
             if self.covered_instances[i] != -1:
-                # is missing ...
                 value = self.X[i][best_attribute]
                 if (value < cut.value and cut.direction == 1) or (value > cut.value and cut.direction == -1):
                     self.covered_instances[i] = -1
                     new_covered_instances.append(i)
-        # print(self.covered_instances)
-        # print(new_covered_instances)
         self.update_statistics(new_covered_instances)
 
     def initialize_for_cut(self):
@@ -310,8 +280,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
             raise
 
     def initialize_for_rule(self):
-        # for x, x2 in self.statistics.items():
-        #     print(x, len(x2), x2)
 
         if PRE_CHOSEN_K:
             self.gradients = [0 for _ in range(self.num_classes)]
@@ -355,48 +323,34 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
             self.gradient_for_example[i_x] -= INSTANCE_WEIGHT * self.probability[i_x][self.max_k]
             self.gradient_for_example[i_x] *= -1
             self.gradient_initial += self.gradient_for_example[i_x]
-            # if self.y[i_x] > 0:
-            #     self.gradient_for_example[i_x] = -1 / (1 + math.exp(self.value_of_f[i_x]))
             if self.covered_instances[i_x] == 1:
                 for i_attr in range(len(self.bucket_affiliation.T)):
                     self.statistics[i_attr][self.bucket_affiliation[i_x][i_attr]] += self.gradient_for_example[i_x]
-        # print('statistics')
-        # print(self.statistics)
-        # print(self.gradient_for_example)
-        # print('gradient per example')
-        # for i in self.gradient_for_example:
-        #     print(i)
-        # raise
 
     def create_inverted_list(self, X):
         import numpy as np
         import copy
-        # print(pd.DataFrame(X))
         X = np.array(X)
         sorted_indices = np.argsort(X, axis=0)
         self.inverted_list = sorted_indices.T
-        # print('self.inverted_list:')
-        # print(self.inverted_list)
         temp = self.inverted_list.copy()
         temp = np.array([[self.y[temp[i][j]] for j in range(len(temp[0]))] for i in range(len(temp))])
-        # print(temp)
-        if self.optimized_searching_for_cut:
-            self.bucket_affiliation = np.zeros((len(self.X), len(self.X[0])), dtype=int)
-            self.thresholds = {}
-            self.statistics = {}
+        
+        self.bucket_affiliation = np.zeros((len(self.X), len(self.X[0])), dtype=int)
+        self.thresholds = {}
+        self.statistics = {}
 
-            for i_attr, indices_in_order in enumerate(self.inverted_list):
-                bucket_number = 0
-                self.thresholds[i_attr] = []
-                for i_index in range(len(indices_in_order) - 1):
-                    self.bucket_affiliation[self.inverted_list[i_attr][i_index]][i_attr] = bucket_number
-                    if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]] and self.X[self.inverted_list[i_attr][i_index]][i_attr] < self.X[self.inverted_list[i_attr][i_index + 1]][i_attr] - EPSILON:
-                        bucket_number += 1
-                        self.thresholds[i_attr].append((self.X[self.inverted_list[i_attr][i_index]][i_attr] + self.X[self.inverted_list[i_attr][i_index + 1]][i_attr]) / 2)
-                self.bucket_affiliation[self.inverted_list[i_attr][-1]][i_attr] = bucket_number
-                self.statistics[i_attr] = [0 for _ in range(bucket_number+1)]
-            print(self.bucket_affiliation)
-            self.initialize_statistics = copy.copy(self.statistics)
+        for i_attr, indices_in_order in enumerate(self.inverted_list):
+            bucket_number = 0
+            self.thresholds[i_attr] = []
+            for i_index in range(len(indices_in_order) - 1):
+                self.bucket_affiliation[self.inverted_list[i_attr][i_index]][i_attr] = bucket_number
+                if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]] and self.X[self.inverted_list[i_attr][i_index]][i_attr] < self.X[self.inverted_list[i_attr][i_index + 1]][i_attr] - EPSILON:
+                    bucket_number += 1
+                    self.thresholds[i_attr].append((self.X[self.inverted_list[i_attr][i_index]][i_attr] + self.X[self.inverted_list[i_attr][i_index + 1]][i_attr]) / 2)
+            self.bucket_affiliation[self.inverted_list[i_attr][-1]][i_attr] = bucket_number
+            self.statistics[i_attr] = [0 for _ in range(bucket_number+1)]
+        self.initialize_statistics = copy.copy(self.statistics)
 
     def update_value_of_f(self, decision):
         for i in range(len(self.X)):
@@ -413,7 +367,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         value_of_f_instance = np.array(self.default_rule)
         rules = self.rules
         for rule in rules:
-            # value_of_f_instance = [elem_1 + elem_2 for elem_1, elem_2 in zip(value_of_f_instance, rule.classify_instance(x))]
             value_of_f_instance += rule.classify_instance(x)
         return value_of_f_instance
 
@@ -428,13 +381,10 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         return np.array(preds)
 
     def score(self, X, y):
-        # Upewnij się, że model jest dopasowany
         check_is_fitted(self, 'is_fitted_')
 
-        # Upewnij się, że dane są poprawne
         X, y = check_X_y(X, y)
 
-        # Przykładowa implementacja oceny jako accuracy
         predictions = self.predict(X)
         accuracy = accuracy_score(y, predictions)
 
@@ -492,7 +442,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
     def filter_pruning_one_method(self, method, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.feature_selection import SelectKBest
         from sklearn.linear_model import LogisticRegression
-        from tqdm import tqdm
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -510,9 +459,11 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
                 if rule_is_chosen:
                     chosen_rules.append(rule_index)
 
-            classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
-                                            random_state=self.random_state,
-                                            max_iter=200)
+            classifier = LogisticRegression(
+                # multi_class='auto', penalty='l1', solver='saga',
+                random_state=self.random_state,
+                max_iter=200
+            )
 
             X_train_new = np.array(rule_feature_matrix_train)[:, chosen_rules]
             X_test_new = np.array(rule_feature_matrix_test)[:, chosen_rules]
@@ -528,12 +479,12 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
     def filter_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
         from sklearn.feature_selection import chi2, f_classif, mutual_info_classif
-        import matplotlib.pyplot as plt
-        import os
 
         print("\tChi 2:")
         chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix_train,
                                                                        rule_feature_matrix_test, **kwargs)
+
+
         print("\tAnova:")
         anova_train_acc, anova_test_acc = self.filter_pruning_one_method(f_classif, rule_feature_matrix_train,
                                                                          rule_feature_matrix_test, **kwargs)
@@ -543,26 +494,27 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
                                                                                      rule_feature_matrix_test, **kwargs)
 
         if verbose:
-            plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules + 1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset',
-                     c='g')
-            plt.plot(list(range(self.n_rules + 1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset',
+            plt.figure(figsize=(14, 10))
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), chi2_train_acc, label='Pruned rules Filter Chi-squared, train dataset',
+                     c='r')
+            plt.plot(list(range(self.n_rules + 1)), anova_train_acc, label='Pruned rules Filter ANOVA, train dataset',
                      c='y')
             plt.plot(list(range(self.n_rules + 1)), mutual_info_train_acc,
-                     label='Pruned rules Filter Mutual_Info, train dataset', c='k')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Pruned rules Filter Mutual info, train dataset', c='k')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset',
-                     c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset',
+            plt.plot(list(range(self.n_rules + 1)), chi2_test_acc, label='Pruned rules Filter Chi-squared, test dataset',
+                     c='r', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), anova_test_acc, label='Pruned rules Filter ANOVA, test dataset',
                      c='y', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), mutual_info_test_acc,
-                     label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
+                     label='Pruned rules Filter Mutual info, test dataset', c='k', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
+            plt.title('Comparison Between Filter Methods Against Baseline Rules', wrap=True)
+            plt.tight_layout()
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -573,9 +525,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         return
 
     def my_idea_wrapper_pruning(self, verbose=True, **kwargs):
-        from tqdm import tqdm
-        from matplotlib import pyplot as plt
-        import os
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -601,6 +550,8 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
             train_acc_upward.append(max_acc)
             test_acc_upward.append(
                 calculate_accuracy(y_test, self.predict_with_specific_rules(X_test, rules_indices_upward)))
+
+        print(f"Rules order up: {rules_indices_upward} Accuracies: {train_acc_upward}, {test_acc_upward}")
         # DOWNWARD
         print("\tDownward")
         rules_indices_downward = []
@@ -624,24 +575,36 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
             test_acc_downward.insert(0, calculate_accuracy(y_test,
                                                            self.predict_with_specific_rules(X_test, indices_in_use)))
 
+        print(f"Rules order down: {rules_indices_downward} Accuracies: {train_acc_downward}, {test_acc_downward}")
+        # train_acc_upward = [0.50125, 0.7, 0.76375, 0.7825, 0.77875, 0.78875, 0.78875, 0.78875, 0.80375, 0.795, 0.79625, 0.8025, 0.80125, 0.8025, 0.81125, 0.81625, 0.81625, 0.81125, 0.81, 0.81125, 0.81875, 0.8125, 0.8075, 0.8225, 0.83125, 0.82875, 0.835, 0.835, 0.84375, 0.8375, 0.8375, 0.84, 0.835, 0.83625, 0.83625, 0.83625, 0.83875, 0.835, 0.835, 0.8325, 0.825, 0.83875, 0.83625, 0.83875, 0.8425, 0.845, 0.84, 0.8425, 0.8425, 0.84875, 0.84625, 0.83875, 0.84875, 0.85, 0.85125, 0.85375, 0.8475, 0.845, 0.84125, 0.8425, 0.8425, 0.84375, 0.83875, 0.84, 0.8375, 0.8425, 0.84375, 0.8425, 0.84375, 0.84125, 0.8425, 0.8375, 0.83875, 0.835, 0.85, 0.85, 0.8575, 0.85375, 0.85625, 0.865, 0.86375, 0.865, 0.8625, 0.865, 0.86625, 0.85875, 0.8625, 0.86, 0.8675, 0.86125, 0.85875, 0.8575, 0.8625, 0.86375, 0.85875, 0.85625, 0.855, 0.85125, 0.84875, 0.855, 0.8575]
+
+
+        #SPAMBASE
+        # train_acc_upward = [0.6059782608695652, 0.8377717391304348, 0.8584239130434783, 0.903804347826087, 0.9125, 0.9290760869565218, 0.9342391304347826, 0.9366847826086957, 0.9391304347826087, 0.9404891304347827, 0.941304347826087, 0.9429347826086957, 0.9434782608695652, 0.94375, 0.9448369565217392, 0.9464673913043479, 0.9470108695652174, 0.9489130434782609, 0.9505434782608696, 0.9516304347826087, 0.9516304347826087, 0.9513586956521739, 0.9516304347826087, 0.9524456521739131, 0.9532608695652174, 0.9548913043478261, 0.9548913043478261, 0.9548913043478261, 0.9554347826086956, 0.9567934782608696, 0.95625, 0.9559782608695652, 0.9557065217391304, 0.9559782608695652, 0.9567934782608696, 0.9576086956521739, 0.9573369565217391, 0.9567934782608696, 0.9570652173913043, 0.9578804347826086, 0.9581521739130435, 0.9584239130434783, 0.9592391304347826, 0.960054347826087, 0.960054347826087, 0.9608695652173913, 0.9625, 0.9614130434782608, 0.9619565217391305, 0.9614130434782608, 0.9608695652173913, 0.9619565217391305, 0.9616847826086956, 0.9619565217391305, 0.9619565217391305, 0.9619565217391305, 0.9614130434782608, 0.9608695652173913, 0.9619565217391305, 0.9605978260869565, 0.9625, 0.9622282608695653, 0.9630434782608696, 0.9622282608695653, 0.9627717391304348, 0.9635869565217391, 0.9635869565217391, 0.9641304347826087, 0.9635869565217391, 0.9635869565217391, 0.9652173913043478, 0.9633152173913043, 0.9625, 0.9625, 0.9611413043478261, 0.9619565217391305, 0.9630434782608696, 0.9635869565217391, 0.9625, 0.9646739130434783, 0.9633152173913043, 0.9646739130434783, 0.9635869565217391, 0.9635869565217391, 0.9635869565217391, 0.9635869565217391, 0.9633152173913043, 0.9630434782608696, 0.9611413043478261, 0.9622282608695653, 0.9635869565217391, 0.9625, 0.9638586956521739, 0.9630434782608696, 0.9622282608695653, 0.9611413043478261, 0.9619565217391305, 0.9597826086956521, 0.9608695652173913, 0.9595108695652174, 0.9595108695652174]
+        # test_acc_upward = [0.6058631921824105, 0.8360477741585234, 0.8512486427795874, 0.8914223669923995, 0.9066232356134636, 0.9131378935939196, 0.9174809989142236, 0.9153094462540716, 0.9185667752442996, 0.9196525515743756, 0.9250814332247557, 0.9218241042345277, 0.9239956568946797, 0.9250814332247557, 0.9239956568946797, 0.9283387622149837, 0.9294245385450597, 0.9261672095548317, 0.9272529858849077, 0.9305103148751357, 0.9305103148751357, 0.9326818675352877, 0.9337676438653637, 0.9348534201954397, 0.9391965255157437, 0.9381107491856677, 0.9370249728555917, 0.9359391965255157, 0.9359391965255157, 0.9359391965255157, 0.9348534201954397, 0.9348534201954397, 0.9337676438653637, 0.9337676438653637, 0.9348534201954397, 0.9326818675352877, 0.9326818675352877, 0.9305103148751357, 0.9326818675352877, 0.9337676438653637, 0.9326818675352877, 0.9305103148751357, 0.9294245385450597, 0.9391965255157437, 0.9305103148751357, 0.9435396308360477, 0.9413680781758957, 0.9391965255157437, 0.9391965255157437, 0.9381107491856677, 0.9391965255157437, 0.9413680781758957, 0.9381107491856677, 0.9381107491856677, 0.9402823018458197, 0.9391965255157437, 0.9424538545059717, 0.9381107491856677, 0.9402823018458197, 0.9413680781758957, 0.9424538545059717, 0.9424538545059717, 0.9402823018458197, 0.9424538545059717, 0.9435396308360477, 0.9391965255157437, 0.9391965255157437, 0.9337676438653637, 0.9359391965255157, 0.9326818675352877, 0.9326818675352877, 0.9337676438653637, 0.9326818675352877, 0.9359391965255157, 0.9381107491856677, 0.9370249728555917, 0.9348534201954397, 0.9413680781758957, 0.9391965255157437, 0.9402823018458197, 0.9391965255157437, 0.9402823018458197, 0.9381107491856677, 0.9402823018458197, 0.9391965255157437, 0.9391965255157437, 0.9413680781758957, 0.9413680781758957, 0.9424538545059717, 0.9435396308360477, 0.9457111834961998, 0.9435396308360477, 0.9424538545059717, 0.9457111834961998, 0.9402823018458197, 0.9435396308360477, 0.9413680781758957, 0.9370249728555917, 0.9435396308360477, 0.9413680781758957, 0.9446254071661238]
+        # train_acc_downward = [0.6059782608695652, 0.6959239130434782, 0.8592391304347826, 0.8961956521739131, 0.903804347826087, 0.8997282608695653, 0.9195652173913044, 0.9125, 0.928804347826087, 0.9179347826086957, 0.9315217391304348, 0.9266304347826086, 0.9355978260869565, 0.9355978260869565, 0.9385869565217392, 0.9402173913043478, 0.9421195652173913, 0.941304347826087, 0.9434782608695652, 0.9442934782608695, 0.9459239130434782, 0.9470108695652174, 0.9491847826086957, 0.9486413043478261, 0.9510869565217391, 0.95, 0.9524456521739131, 0.9513586956521739, 0.9532608695652174, 0.9529891304347826, 0.9543478260869566, 0.9538043478260869, 0.9540760869565217, 0.9554347826086956, 0.9548913043478261, 0.95625, 0.9557065217391304, 0.9573369565217391, 0.9584239130434783, 0.9584239130434783, 0.960054347826087, 0.9592391304347826, 0.9605978260869565, 0.9597826086956521, 0.9603260869565218, 0.9595108695652174, 0.9608695652173913, 0.9614130434782608, 0.9619565217391305, 0.9622282608695653, 0.9619565217391305, 0.9619565217391305, 0.9616847826086956, 0.9630434782608696, 0.9633152173913043, 0.9638586956521739, 0.9644021739130435, 0.9630434782608696, 0.9625, 0.9630434782608696, 0.9635869565217391, 0.9641304347826087, 0.9638586956521739, 0.9633152173913043, 0.9633152173913043, 0.9635869565217391, 0.9641304347826087, 0.9644021739130435, 0.9644021739130435, 0.9646739130434783, 0.964945652173913, 0.964945652173913, 0.9646739130434783, 0.9646739130434783, 0.9644021739130435, 0.9641304347826087, 0.9641304347826087, 0.9644021739130435, 0.9646739130434783, 0.9644021739130435, 0.9646739130434783, 0.964945652173913, 0.9652173913043478, 0.964945652173913, 0.9641304347826087, 0.9638586956521739, 0.9641304347826087, 0.9644021739130435, 0.9644021739130435, 0.9644021739130435, 0.9644021739130435, 0.9644021739130435, 0.9641304347826087, 0.9638586956521739, 0.9638586956521739, 0.9638586956521739, 0.9635869565217391, 0.9633152173913043, 0.9630434782608696, 0.9625, 0.9595108695652174]
+        # test_acc_downward = [0.6058631921824105, 0.6851248642779587, 0.8501628664495114, 0.8849077090119435, 0.8979370249728555, 0.8968512486427795, 0.9044516829533116, 0.9120521172638436, 0.9196525515743756, 0.9098805646036916, 0.9174809989142236, 0.9163952225841476, 0.9174809989142236, 0.9207383279044516, 0.9185667752442996, 0.9305103148751357, 0.9283387622149837, 0.9250814332247557, 0.9239956568946797, 0.9272529858849077, 0.9272529858849077, 0.9272529858849077, 0.9283387622149837, 0.9326818675352877, 0.9261672095548317, 0.9261672095548317, 0.9272529858849077, 0.9315960912052117, 0.9305103148751357, 0.9305103148751357, 0.9315960912052117, 0.9326818675352877, 0.9315960912052117, 0.9315960912052117, 0.9305103148751357, 0.9294245385450597, 0.9315960912052117, 0.9315960912052117, 0.9315960912052117, 0.9326818675352877, 0.9315960912052117, 0.9337676438653637, 0.9337676438653637, 0.9315960912052117, 0.9315960912052117, 0.9370249728555917, 0.9359391965255157, 0.9348534201954397, 0.9359391965255157, 0.9348534201954397, 0.9359391965255157, 0.9337676438653637, 0.9391965255157437, 0.9348534201954397, 0.9348534201954397, 0.9348534201954397, 0.9326818675352877, 0.9370249728555917, 0.9326818675352877, 0.9391965255157437, 0.9370249728555917, 0.9348534201954397, 0.9337676438653637, 0.9348534201954397, 0.9337676438653637, 0.9337676438653637, 0.9348534201954397, 0.9337676438653637, 0.9359391965255157, 0.9370249728555917, 0.9381107491856677, 0.9381107491856677, 0.9381107491856677, 0.9402823018458197, 0.9413680781758957, 0.9381107491856677, 0.9391965255157437, 0.9391965255157437, 0.9402823018458197, 0.9391965255157437, 0.9424538545059717, 0.9413680781758957, 0.9413680781758957, 0.9413680781758957, 0.9402823018458197, 0.9402823018458197, 0.9413680781758957, 0.9424538545059717, 0.9424538545059717, 0.9424538545059717, 0.9424538545059717, 0.9424538545059717, 0.9424538545059717, 0.9435396308360477, 0.9446254071661238, 0.9446254071661238, 0.9435396308360477, 0.9435396308360477, 0.9457111834961998, 0.9446254071661238, 0.9446254071661238]
+        # rules_indices_upward = [12, 18, 24, 11, 21, 16, 52, 66, 88, 26, 93, 31, 30, 43, 72, 50, 64, 78, 69, 97, 23, 22, 99, 65, 79, 95, 36, 37, 47, 86, 90, 92, 76, 96, 98, 94, 57, 81, 70, 49, 62, 68, 85, 56, 58, 71, 51, 32, 84, 83, 33, 61, 80, 82, 75, 77, 59, 42, 39, 87, 29, 63, 6, 89, 40, 73, 91, 45, 41, 60, 0, 10, 5, 46, 35, 38, 14, 34, 13, 44, 48, 27, 54, 55, 53, 8, 67, 25, 15, 74, 9, 2, 20, 28, 7, 4, 19, 1, 17, 3]
+        # rules_indices_downward = [15, 18, 12, 3, 14, 2, 9, 24, 1, 8, 28, 11, 25, 17, 5, 10, 40, 19, 74, 54, 45, 44, 55, 59, 56, 85, 96, 68, 58, 87, 60, 41, 16, 34, 20, 52, 67, 91, 48, 71, 53, 46, 77, 63, 39, 61, 73, 26, 75, 42, 81, 29, 37, 70, 83, 94, 36, 38, 7, 6, 43, 62, 72, 76, 99, 22, 97, 84, 23, 92, 65, 95, 35, 80, 21, 64, 51, 89, 49, 57, 98, 78, 86, 50, 27, 33, 31, 79, 32, 93, 69, 82, 88, 47, 30, 90, 66, 0, 4, 13]
         if verbose:
-            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
+            print(f"Rules order up: {rules_indices_upward} Accuracies: {train_acc_upward}, {test_acc_upward}")
+            print(f"Rules order down: {rules_indices_downward} Accuracies: {train_acc_downward}, {test_acc_downward}")
             plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
             plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
-                     label='Pruned rules My Idea Wrapper upward, train dataset', c='g')
+                     label='Proposed forward selection, train dataset', c='g')
             plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
-                     label='Pruned rules My Idea Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Proposed backward elimination, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_upward,
-                     label='Pruned rules My Idea Wrapper upward, test dataset', c='g', linestyle='dashed')
+                     label='Proposed forward selection, test dataset', c='g', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
-                     label='Pruned rules My Idea Wrapper downward, test dataset', c='y', linestyle='dashed')
+                     label='Proposed backward elimination, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nMy idea Wrapper method')
+            plt.title('Comparison Between Proposed Methods Against Baseline Rules')
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -652,9 +615,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         return
 
     def wrapper_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
-        from tqdm import tqdm
-        from matplotlib import pyplot as plt
-        import os
         from sklearn.linear_model import LogisticRegression
 
         X_train = kwargs['x_tr']
@@ -677,7 +637,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
                 classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
                                                 random_state=self.random_state)
-                # classifier = svm.SVC(random_state=42)
 
                 classifier.fit(X_train_new, y_train)
                 y_train_preds = classifier.predict(X_train_new)
@@ -689,13 +648,13 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
                     max_acc_index = i
                     max_classifier = classifier
             rules_indices_upward.append(max_acc_index)
-            # print('Indices', rules_indices_upward)
             X_test_new = np.array(rule_feature_matrix_test)[:, rules_indices_upward]
             y_test_preds = max_classifier.predict(X_test_new)
             max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
 
             train_acc_upward.append(max_acc)
             test_acc_upward.append(max_acc_test)
+        print(f"Rules order: {rules_indices_upward} Accuracies test: {test_acc_upward}, Accuracies train: {train_acc_upward}")
 
         # DOWNWARD
         print("\tDownward")
@@ -718,7 +677,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
                 classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
                                                 random_state=self.random_state)
-                # classifier = svm.SVC(random_state=42)
 
                 classifier.fit(X_train_new, y_train)
                 y_train_preds = classifier.predict(X_train_new)
@@ -739,26 +697,112 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
             test_acc_downward.insert(0, max_acc_test)
         train_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
         test_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
+
+        # rules_indices_upward = [45, 55, 6, 99, 52, 4, 81, 64, 72, 40, 53, 73, 67, 13, 95, 89, 62, 85, 15, 7, 68, 19, 5, 49, 61, 63, 71, 66, 46, 2, 43, 33, 44, 22, 92, 0, 70, 11, 9, 20, 75, 34, 48, 58, 59, 88, 65, 41, 25, 24, 35, 82, 77, 27, 18, 78, 74, 98, 29, 47, 38, 54, 17, 51, 14, 50, 16, 86, 96, 87, 21, 39, 80, 28, 1, 32, 12, 91, 36, 30, 10, 57, 84, 8, 93, 31, 94, 79, 83, 56, 23, 3, 42, 97, 76, 60, 69, 26, 90, 37]
+        # test_acc_upward = [0.50125, 0.695, 0.7125, 0.7625, 0.78375, 0.8125, 0.81125, 0.815, 0.8125, 0.81625, 0.8125, 0.7975, 0.7975, 0.82375, 0.8225, 0.82125, 0.82625, 0.82375, 0.82375, 0.82375, 0.82625, 0.81875, 0.81875, 0.82, 0.81625, 0.8225, 0.8375, 0.8325, 0.83375, 0.83875, 0.84375, 0.84125, 0.84125, 0.84375, 0.83625, 0.84375, 0.8375, 0.8375, 0.84, 0.83875, 0.84125, 0.84, 0.84, 0.84, 0.84, 0.84125, 0.84375, 0.845, 0.845, 0.8475, 0.845, 0.8475, 0.85, 0.85375, 0.85375, 0.8525, 0.85125, 0.84625, 0.845, 0.84875, 0.84875, 0.84875, 0.85125, 0.85, 0.85, 0.8425, 0.83625, 0.83625, 0.83625, 0.83625, 0.84125, 0.84, 0.83875, 0.8375, 0.84375, 0.845, 0.845, 0.84125, 0.8375, 0.8375, 0.84125, 0.8425, 0.84, 0.83125, 0.83, 0.83125, 0.835, 0.83, 0.83, 0.82625, 0.82375, 0.83, 0.82875, 0.8275, 0.83125, 0.83, 0.83125, 0.83, 0.83875, 0.84375, 0.83875]
+        # train_acc_upward = [0.5009375, 0.7115625, 0.74125, 0.7803125, 0.7971875, 0.81, 0.8278125, 0.83375, 0.8396875, 0.8425, 0.8525, 0.86, 0.8659375, 0.8671875, 0.870625, 0.8740625, 0.87625, 0.8775, 0.8778125, 0.8778125, 0.8775, 0.8775, 0.88, 0.880625, 0.8809375, 0.88125, 0.883125, 0.8834375, 0.885, 0.8875, 0.890625, 0.8928125, 0.8953125, 0.8975, 0.9, 0.9025, 0.904375, 0.9071875, 0.9103125, 0.9103125, 0.910625, 0.9115625, 0.911875, 0.911875, 0.911875, 0.9115625, 0.913125, 0.9134375, 0.9128125, 0.9134375, 0.9121875, 0.9128125, 0.915625, 0.9159375, 0.91625, 0.9159375, 0.915625, 0.9159375, 0.919375, 0.92, 0.920625, 0.92, 0.92, 0.9203125, 0.92, 0.9190625, 0.9209375, 0.920625, 0.92, 0.9225, 0.9253125, 0.9253125, 0.925625, 0.9246875, 0.9253125, 0.9259375, 0.92625, 0.92625, 0.9259375, 0.92625, 0.925625, 0.925625, 0.9259375, 0.9275, 0.9271875, 0.92625, 0.92625, 0.9259375, 0.9290625, 0.92875, 0.9303125, 0.9303125, 0.93125, 0.930625, 0.93125, 0.9315625, 0.9315625, 0.9309375, 0.93, 0.9303125, 0.92875]
         #
+        #
+        # rules_indices_downward = [55, 84, 89, 97, 46, 80, 71, 51, 64, 96, 26, 90, 48, 25, 81, 74, 43, 49, 83, 22, 59, 54, 60, 98, 53, 70, 6, 63, 78, 82, 85, 94, 87, 10, 61, 42, 0, 50, 66, 77, 40, 75, 92, 88, 79, 36, 86, 69, 41, 24, 73, 23, 72, 12, 1, 11, 99, 7, 95, 20, 91, 27, 38, 5, 28, 58, 30, 56, 15, 44, 65, 57, 18, 39, 47, 33, 52, 35, 31, 93, 29, 14, 62, 17, 4, 13, 34, 21, 16, 9, 8, 68, 32, 76, 3, 2, 19, 37, 67]
+        # test_acc_downward = [0.5009375, 0.695, 0.7125, 0.72625, 0.74875, 0.74875, 0.7675, 0.76875, 0.75875, 0.765, 0.79, 0.78125, 0.78, 0.775, 0.77125, 0.79625, 0.805, 0.8125, 0.80375, 0.81375, 0.8125, 0.81875, 0.81875, 0.815, 0.82375, 0.825, 0.81875, 0.82125, 0.825, 0.83, 0.83125, 0.82875, 0.82625, 0.82125, 0.82, 0.81875, 0.82, 0.82125, 0.82375, 0.82625, 0.82625, 0.82875, 0.82375, 0.8275, 0.83625, 0.83375, 0.835, 0.8325, 0.8325, 0.8325, 0.83375, 0.8375, 0.83375, 0.83625, 0.83375, 0.83625, 0.835, 0.8375, 0.8375, 0.83125, 0.82875, 0.83, 0.83, 0.83375, 0.8375, 0.8375, 0.8375, 0.8375, 0.83625, 0.83375, 0.83625, 0.83375, 0.835, 0.83625, 0.83625, 0.83125, 0.83125, 0.83, 0.83375, 0.835, 0.835, 0.835, 0.835, 0.835, 0.83625, 0.83625, 0.835, 0.835, 0.83, 0.83, 0.83, 0.83, 0.83125, 0.83, 0.8325, 0.8325, 0.83375, 0.83375, 0.83375, 0.835, 0.83875]
+        # train_acc_downward = [0.5009375, 0.7115625, 0.74125, 0.7659375, 0.7878125, 0.7878125, 0.805625, 0.808125, 0.8178125, 0.8296875, 0.8359375, 0.8428125, 0.8496875, 0.8540625, 0.859375, 0.8678125, 0.8709375, 0.875, 0.87875, 0.881875, 0.8865625, 0.890625, 0.8934375, 0.89875, 0.8996875, 0.9021875, 0.9053125, 0.90875, 0.91125, 0.91375, 0.9140625, 0.9159375, 0.9178125, 0.9184375, 0.919375, 0.920625, 0.9203125, 0.9215625, 0.923125, 0.924375, 0.9265625, 0.9275, 0.9290625, 0.929375, 0.9309375, 0.93125, 0.930625, 0.933125, 0.931875, 0.9328125, 0.9346875, 0.9340625, 0.9340625, 0.933125, 0.9334375, 0.9328125, 0.93375, 0.9340625, 0.9334375, 0.935, 0.935, 0.935625, 0.9353125, 0.9340625, 0.9340625, 0.9334375, 0.934375, 0.934375, 0.935, 0.9353125, 0.9353125, 0.935625, 0.9359375, 0.935625, 0.935625, 0.935625, 0.9359375, 0.9359375, 0.935625, 0.9359375, 0.93625, 0.93625, 0.9365625, 0.9365625, 0.93625, 0.93625, 0.93625, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.935625, 0.9346875, 0.9340625, 0.9340625, 0.9340625, 0.9328125, 0.93125, 0.92875]
+
+
+        # order = [45, 28, 16, 24, 13, 17, 6, 70, 68, 9, 26, 53, 37, 55, 57, 15, 1, 30, 11, 69, 3, 7, 59, 75, 78, 84, 79, 58, 31, 36, 82, 81, 2, 0, 89, 27, 32, 66, 54, 43, 49, 19, 67, 92, 12, 52, 35, 44, 62, 61, 73, 47, 14, 25, 18, 99, 42, 10, 72, 60, 20, 95, 94, 39, 77, 23, 76, 85, 74, 29, 56, 22, 4, 63, 48, 50, 51, 91, 34, 90, 40, 86, 88, 46, 5, 33, 38, 98, 65, 80, 97, 87, 96, 64, 83, 41, 21, 8, 93, 71]
+        # test_acc_up = [0.6058631921824105, 0.8414766558089034, 0.8881650380021715, 0.8990228013029316, 0.9131378935939196,
+        #        0.9163952225841476, 0.9196525515743756, 0.9218241042345277, 0.9229098805646037, 0.9218241042345277,
+        #        0.9261672095548317, 0.9283387622149837, 0.9315960912052117, 0.9391965255157437, 0.9402823018458197,
+        #        0.9413680781758957, 0.9413680781758957, 0.9413680781758957, 0.9413680781758957, 0.9413680781758957,
+        #        0.9413680781758957, 0.9413680781758957, 0.9413680781758957, 0.9402823018458197, 0.9402823018458197,
+        #        0.9402823018458197, 0.9402823018458197, 0.9413680781758957, 0.9424538545059717, 0.9381107491856677,
+        #        0.9413680781758957, 0.9402823018458197, 0.9424538545059717, 0.9435396308360477, 0.9435396308360477,
+        #        0.9435396308360477, 0.9435396308360477, 0.9435396308360477, 0.9435396308360477, 0.9424538545059717,
+        #        0.9424538545059717, 0.9435396308360477, 0.9435396308360477, 0.9435396308360477, 0.9424538545059717,
+        #        0.9413680781758957, 0.9381107491856677, 0.9402823018458197, 0.9402823018458197, 0.9402823018458197,
+        #        0.9424538545059717, 0.9391965255157437, 0.9402823018458197, 0.9424538545059717, 0.9424538545059717,
+        #        0.9402823018458197, 0.9402823018458197, 0.9402823018458197, 0.9402823018458197, 0.9424538545059717,
+        #        0.9435396308360477, 0.9424538545059717, 0.9413680781758957, 0.9402823018458197, 0.9381107491856677,
+        #        0.9424538545059717, 0.9435396308360477, 0.9381107491856677, 0.9413680781758957, 0.9391965255157437,
+        #        0.9359391965255157, 0.9381107491856677, 0.9391965255157437, 0.9413680781758957, 0.9467969598262758,
+        #        0.9467969598262758, 0.9467969598262758, 0.9446254071661238, 0.9413680781758957, 0.9391965255157437,
+        #        0.9381107491856677, 0.9370249728555917, 0.9370249728555917, 0.9370249728555917, 0.9381107491856677,
+        #        0.9359391965255157, 0.9359391965255157, 0.9424538545059717, 0.9413680781758957, 0.9413680781758957,
+        #        0.9391965255157437, 0.9402823018458197, 0.9413680781758957, 0.9424538545059717, 0.9424538545059717,
+        #        0.9424538545059717, 0.9457111834961998, 0.9500542888165038, 0.9500542888165038, 0.9489685124864278,
+        #        0.9500542888165038]
+        # train_acc_up = [0.6059782608695652, 0.8679347826086956, 0.8991847826086956, 0.9160326086956522, 0.925,
+        #         0.935054347826087, 0.9407608695652174, 0.9442934782608695, 0.946195652173913, 0.9497282608695652,
+        #         0.9505434782608696, 0.9513586956521739, 0.9535326086956522, 0.9551630434782609, 0.9578804347826086,
+        #         0.9589673913043478, 0.9592391304347826, 0.9592391304347826, 0.9597826086956521, 0.9597826086956521,
+        #         0.9597826086956521, 0.9597826086956521, 0.9597826086956521, 0.9597826086956521, 0.9597826086956521,
+        #         0.9597826086956521, 0.9597826086956521, 0.9595108695652174, 0.9595108695652174, 0.9605978260869565,
+        #         0.9622282608695653, 0.9625, 0.9633152173913043, 0.9635869565217391, 0.9635869565217391,
+        #         0.9638586956521739, 0.9638586956521739, 0.9638586956521739, 0.9638586956521739, 0.9635869565217391,
+        #         0.9633152173913043, 0.9635869565217391, 0.9630434782608696, 0.9633152173913043, 0.9627717391304348,
+        #         0.9622282608695653, 0.9633152173913043, 0.9654891304347826, 0.9652173913043478, 0.9652173913043478,
+        #         0.9654891304347826, 0.9660326086956522, 0.9665760869565218, 0.9671195652173913, 0.967391304347826,
+        #         0.9676630434782608, 0.9676630434782608, 0.967391304347826, 0.967391304347826, 0.9676630434782608,
+        #         0.9679347826086957, 0.967391304347826, 0.967391304347826, 0.967391304347826, 0.9679347826086957,
+        #         0.9690217391304348, 0.9695652173913043, 0.9698369565217392, 0.9703804347826087, 0.9709239130434782,
+        #         0.971195652173913, 0.9714673913043478, 0.9720108695652174, 0.9722826086956522, 0.9728260869565217,
+        #         0.9728260869565217, 0.9728260869565217, 0.9728260869565217, 0.9730978260869565, 0.9736413043478261,
+        #         0.9741847826086957, 0.9744565217391304, 0.9744565217391304, 0.9744565217391304, 0.9739130434782609,
+        #         0.9733695652173913, 0.9736413043478261, 0.9733695652173913, 0.9736413043478261, 0.9736413043478261,
+        #         0.9736413043478261, 0.9739130434782609, 0.9730978260869565, 0.9736413043478261, 0.9739130434782609,
+        #         0.9739130434782609, 0.9733695652173913, 0.9733695652173913, 0.9733695652173913, 0.9736413043478261,
+        #         0.9722826086956522]
+        #
+        # down_order = [62, 9, 39, 53, 81, 37, 38, 85, 96, 31, 41, 76, 94, 68, 47, 16, 58, 84, 34, 56, 45, 57, 33, 4, 79, 51,
+        #         70, 14, 74, 29, 43, 77, 63, 91, 83, 98, 42, 7, 99, 8, 80, 32, 89, 11, 67, 52, 72, 50, 95, 92, 60, 2, 64,
+        #         73, 46, 66, 48, 25, 93, 17, 3, 21, 19, 24, 55, 97, 90, 88, 86, 82, 78, 69, 65, 61, 59, 54, 49, 44, 40,
+        #         36, 35, 30, 28, 27, 26, 23, 20, 18, 15, 13, 10, 0, 1, 22, 87, 5, 6, 12, 71]
+        #
+        # test_acc_down = [0.6059782608695652, 0.6905537459283387, 0.8067318132464713, 0.8762214983713354, 0.8783930510314875,
+        #        0.8903365906623235, 0.9077090119435396, 0.9033659066232356, 0.9098805646036916, 0.9109663409337676,
+        #        0.9153094462540716, 0.9207383279044516, 0.9229098805646037, 0.9294245385450597, 0.9315960912052117,
+        #        0.9337676438653637, 0.9272529858849077, 0.9337676438653637, 0.9381107491856677, 0.9337676438653637,
+        #        0.9348534201954397, 0.9348534201954397, 0.9315960912052117, 0.9305103148751357, 0.9305103148751357,
+        #        0.9326818675352877, 0.9337676438653637, 0.9359391965255157, 0.9359391965255157, 0.9370249728555917,
+        #        0.9370249728555917, 0.9391965255157437, 0.9391965255157437, 0.9381107491856677, 0.9381107491856677,
+        #        0.9391965255157437, 0.9402823018458197, 0.9424538545059717, 0.9435396308360477, 0.9413680781758957,
+        #        0.9402823018458197, 0.9435396308360477, 0.9435396308360477, 0.9435396308360477, 0.9457111834961998,
+        #        0.9435396308360477, 0.9457111834961998, 0.9435396308360477, 0.9402823018458197, 0.9402823018458197,
+        #        0.9402823018458197, 0.9413680781758957, 0.9402823018458197, 0.9457111834961998, 0.9457111834961998,
+        #        0.9457111834961998, 0.9446254071661238, 0.9446254071661238, 0.9467969598262758, 0.9478827361563518,
+        #        0.9446254071661238, 0.9457111834961998, 0.9457111834961998, 0.9467969598262758, 0.9467969598262758,
+        #        0.9457111834961998, 0.9467969598262758, 0.9467969598262758, 0.9467969598262758, 0.9467969598262758,
+        #        0.9467969598262758, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998,
+        #        0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998,
+        #        0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998,
+        #        0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9457111834961998,
+        #        0.9457111834961998, 0.9457111834961998, 0.9457111834961998, 0.9467969598262758, 0.9457111834961998,
+        #        0.9446254071661238, 0.9446254071661238, 0.9478827361563518, 0.9500542888165038, 0.9489685124864278,
+        #        0.9500542888165038]
+        # train_acc_down = [0.6059782608695652, 0.6945652173913044, 0.8255434782608696, 0.8913043478260869, 0.8913043478260869, 0.9054347826086957, 0.9171195652173914, 0.9190217391304348, 0.9323369565217391, 0.936141304347826, 0.939945652173913, 0.9445652173913044, 0.95, 0.9502717391304348, 0.9527173913043478, 0.9557065217391304, 0.9567934782608696, 0.9589673913043478, 0.9622282608695653, 0.9641304347826087, 0.9644021739130435, 0.966304347826087, 0.967391304347826, 0.96875, 0.9695652173913043, 0.9692934782608695, 0.9703804347826087, 0.971195652173913, 0.9717391304347827, 0.9728260869565217, 0.9728260869565217, 0.9733695652173913, 0.9736413043478261, 0.9736413043478261, 0.9741847826086957, 0.9744565217391304, 0.9739130434782609, 0.9739130434782609, 0.9741847826086957, 0.9744565217391304, 0.9744565217391304, 0.9744565217391304, 0.975, 0.9755434782608695, 0.9755434782608695, 0.9755434782608695, 0.9758152173913044, 0.9760869565217392, 0.9760869565217392, 0.9763586956521739, 0.9763586956521739, 0.9760869565217392, 0.9758152173913044, 0.9763586956521739, 0.9763586956521739, 0.9763586956521739, 0.9766304347826087, 0.9766304347826087, 0.9766304347826087, 0.9766304347826087, 0.9763586956521739, 0.9760869565217392, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9755434782608695, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9758152173913044, 0.9755434782608695, 0.975, 0.9747282608695652, 0.9741847826086957, 0.9741847826086957, 0.9736413043478261, 0.9722826086956522]
+
+
+        print(f"Rules order: {rules_indices_downward} Accuracies test: {test_acc_downward}, Accuracies train {train_acc_downward}")
+
         if verbose:
-            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
-            print(f"Rules order: {rules_indices_downward} Accuracies: {test_acc_downward}")
-            plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            print("history train", self.history['accuracy'])
+            print("history test", self.history['accuracy_test'])
+            plt.figure(figsize=(14, 10))
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
             plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
-                     label='Pruned rules Wrapper upward, train dataset', c='g')
+                     label='Forward selection, train dataset', c='g')
             plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
-                     label='Pruned rules Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Backward elimination, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset',
+            plt.plot(list(range(self.n_rules + 1)), test_acc_upward, label='Forward selection, test dataset',
                      c='g', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
-                     label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
+                     label='Backward elimination, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
+            plt.title('Comparison Between Wrapper Methods Against Baseline Rules', wrap=True)
+            plt.tight_layout()
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -771,7 +815,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
     def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.linear_model import LogisticRegression
-        from tqdm import tqdm
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -788,7 +831,6 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         for alpha in tqdm(alphas):
             pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha,
                                                max_iter=10000)
-            # pruning_model = LogisticRegression(multi_class='auto', penalty='l2', solver='saga', C=alpha)
             pruning_model.fit(rule_feature_matrix_train, y_train)
 
             y_train_preds = pruning_model.predict(rule_feature_matrix_train)
@@ -807,18 +849,22 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
         alphas = [0] + alphas
         fig, ax = plt.subplots(1, 3, figsize=(21, 7))
-        ax[0].set_title("Regularization (C) vs rule number")
+        ax[0].set_title("Impact of Regularization\non Ensemble Size", wrap=True)
         ax[0].plot(alphas, active_rule_number)
         ax[0].scatter(alphas, active_rule_number)
         ax[0].set_xscale('log')
+        ax[0].set_xlabel('1/λ')
+        ax[0].set_ylabel("Rules in ensemble")
         ###
-        ax[1].set_title('Regularization (C) vs accuracy')
+        ax[1].set_title('Impact of Regularization\non Accuracy', wrap=True)
         ax[1].plot(alphas, train_acc, label='Train accuracy')
         ax[1].plot(alphas, test_acc, label='Test accuracy')
         ax[1].set_xscale('log')
+        ax[1].set_xlabel('1/λ')
+        ax[1].set_ylabel("Accuracy")
         ax[1].legend()
         ###
-        ax[2].set_title("Rule number vs accuracy")
+        ax[2].set_title("Relationship Between Ensemble Size\nand Accuracy", wrap=True)
         ax[2].plot(range(self.n_rules + 1), self.history['accuracy'], label='Old rules, Train dataset', c='b')
         ax[2].plot(range(self.n_rules + 1), self.history['accuracy_test'], label='Old rules, Test dataset', c='b',
                    linestyle='dashed')
@@ -827,6 +873,9 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
         ax[2].scatter(active_rule_number, train_acc, c='r')
         ax[2].scatter(active_rule_number, test_acc, c='r')
         ax[2].legend()
+        ax[2].set_xlabel('Rules in the ensemble')
+        ax[2].set_ylabel("Accuracy")
+        plt.tight_layout()
         plt.savefig(
             os.path.join('Plots',
                          'Pruning',
@@ -836,291 +885,3 @@ class EnderClassifierFastMyImplementation(BaseEstimator, ClassifierMixin):  # Re
 
         plt.show()
         return
-        raise
-        if False:
-
-            lars_how_many_rules = 1
-            lars_verbose = True
-            lars_show_accuracy_graph = True
-            lars_show_path = True
-
-            train_acc = []
-            results_train = np.array(rule_feature_matrix_train) @ coefs
-            results_train[results_train > 0.5] = 1
-            results_train[results_train <= 0.5] = 0
-            for y_train_preds in results_train.T:
-                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
-                train_acc.append(current_acc)
-
-            test_acc = []
-            results_test = np.array(rule_feature_matrix_test) @ coefs
-            threshold = 0.5
-            results_test[results_test > threshold] = 1
-            results_test[results_test <= threshold] = 0
-            for y_test_preds in results_test.T:
-                current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
-                test_acc.append(current_acc)
-            x_acc_new = list(range(len(results_train[0])))
-
-            # print(results[:5])
-            # for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
-            #     # self.effective_rules = []
-            #     effective_rule_indices = np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]
-            #     if len(effective_rule_indices) == lars_how_many_rules:
-            #         self.effective_rules = [self.rules[i] for i in effective_rule_indices]
-            #
-            #     y_train_preds = self.predict_with_specific_rules(x_tr, rule_indices=effective_rule_indices)
-            #     y_train_preds =
-            #     y_test_preds = self.predict_with_specific_rules(x_te, rule_indices=effective_rule_indices)
-            #     final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
-            #     acc_new.append(final_metrics['accuracy_train'])
-            #     x_acc_new.append((len(effective_rule_indices)))
-            #
-            #     if lars_verbose:
-            #         print(f'Ile ma niezerową wartość w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step),
-            #               np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
-            #         print(final_metrics)
-            #         print()
-
-            if lars_show_accuracy_graph:
-                plt.figure(figsize=(10, 7))
-                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'],
-                         label='Old rules, train dataset', c='b')
-                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'],
-                         label='Old rules, test dataset', linestyle='dashed', c='b')
-                plt.plot(x_acc_new, train_acc, label='Pruned rules, Embedded, train dataset', c='r')
-                plt.plot(x_acc_new, test_acc, label='Pruned rules, Embedded, test dataset', linestyle='dashed', c='r')
-
-                plt.grid()
-                plt.ylabel("Accuracy")
-                plt.xlabel("Rules")
-                plt.title("Accuracy vs no. rules")
-                plt.legend()
-                plt.savefig(os.path.join('Plots',
-                                         'pruning',
-                                         'Embedded',
-                                         f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-                plt.show()
-            if lars_show_path:
-                xx = np.sum(np.abs(coefs.T), axis=1)
-                xx /= xx[-1]
-
-                plt.figure(figsize=(10, 7))
-                plt.plot(xx, coefs.T)
-                ymin, ymax = plt.ylim()
-                # plt.vlines(xx, ymin, ymax, linestyle="dashed")
-                plt.xlabel("|coef| / max|coef|")
-                plt.ylabel("Coefficients")
-                plt.title("LASSO Path")
-                plt.axis("tight")
-                plt.savefig(
-                    os.path.join('Plots',
-                                 'pruning',
-                                 'Embedded',
-                                 f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-                plt.show()
-            return
-        else:
-            raise Exception("Choose right regressor for pruning!")
-        # pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=3.5*10e-3)
-
-        pruning_model.fit(rule_feature_matrix, self.y)
-        # print('koef')
-        # print(pruning_model.coef_)
-
-        # mean_abs_coef = np.sum(np.abs(pruning_model.coef_), axis=0)
-        # # Indeksy cech posortowane według średniej wartości bezwzględnej wag
-        # sorted_feature_indices = np.argsort(mean_abs_coef)[::-1]
-        # # Wyświetlanie wyników
-        # print("Najważniejsze cechy wejściowe (posortowane według średniej wartości bezwzględnej wag):")
-        # for idx in sorted_feature_indices:
-        #     print(f"Cecha {idx}: {mean_abs_coef[idx]}")
-
-        weights = np.sum(np.abs(pruning_model.coef_), axis=0)
-        # weights = np.absolute(weights)
-        # print(multioutput_regressor.estimators_[0].coef_[0])
-        # print(weights)
-        # consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
-        # print(consolidated_weights)
-
-        # effective_rule_indices = np.argsort(consolidated_weights)[::-1]
-        effective_rule_indices = np.argsort(weights)[::-1]
-        # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
-        # effective_rule_indices += 1
-
-        self.effective_rules = []
-        for rule_index in effective_rule_indices:
-            if abs(weights[rule_index]) > 10e-5:
-                self.effective_rules.append(self.rules[rule_index])
-        # print(self.effective_rules)
-
-        # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
-        # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
-        print(
-            f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
-
-    # def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
-    #     from sklearn.linear_model import Lasso
-    #     from sklearn.linear_model import Ridge
-    #     from sklearn.linear_model import LogisticRegression
-    #     from sklearn.linear_model import lasso_path
-    #     from sklearn.linear_model import lars_path
-    #     from sklearn.multioutput import MultiOutputRegressor
-    #
-    #     X_train = kwargs['x_tr']
-    #     X_test = kwargs['x_te']
-    #     y_train = kwargs['y_tr']
-    #     y_test = kwargs['y_te']
-    #
-    #     regressor = 'LarsPath'
-    #     alpha = 0.1
-    #     if regressor == 'MultiOutputRidge':
-    #         pruning_model = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
-    #     elif regressor == 'LogisticRegressorL1':
-    #         pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=alpha)
-    #     elif regressor == 'LogisticRegressorL2':
-    #         pruning_model = LogisticRegression(multi_class='auto', penalty='l2', C=alpha)
-    #     elif regressor == "LarsPath":
-    #         from matplotlib import pyplot as plt
-    #         import os
-    #         # Coefs is the matrix n_rules X alphas
-    #         # lars = False
-    #         lars = True
-    #         # positive = False
-    #         positive = False
-    #         if not positive and lars:
-    #             _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(y_train),
-    #                                     method="lasso", eps=1, verbose=True)
-    #         # elif positive and lars:
-    #         #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y),
-    #         #                             method="lasso", eps=1, verbose=True, positive=True)
-    #         # # Same as first condition
-    #         # elif not positive and lars:
-    #         #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), method="lar",
-    #         #                             eps=1, verbose=True)
-    #         # if not positive and not lars:
-    #         #     _, _, coefs = lasso_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), eps=1,
-    #         #                              verbose=True)
-    #
-    #         lars_how_many_rules = 1
-    #         lars_verbose = True
-    #         lars_show_accuracy_graph = True
-    #         lars_show_path = True
-    #
-    #         train_acc = []
-    #         results_train = np.array(rule_feature_matrix_train) @ coefs
-    #         results_train[results_train > 0.5] = 1
-    #         results_train[results_train <= 0.5] = 0
-    #         for y_train_preds in results_train.T:
-    #             current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
-    #             train_acc.append(current_acc)
-    #
-    #         test_acc = []
-    #         results_test = np.array(rule_feature_matrix_test) @ coefs
-    #         threshold = 0.5
-    #         results_test[results_test > threshold] = 1
-    #         results_test[results_test <= threshold] = 0
-    #         for y_test_preds in results_test.T:
-    #             current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
-    #             test_acc.append(current_acc)
-    #         x_acc_new = list(range(len(results_train[0])))
-    #
-    #         # print(results[:5])
-    #         # for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
-    #         #     # self.effective_rules = []
-    #         #     effective_rule_indices = np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]
-    #         #     if len(effective_rule_indices) == lars_how_many_rules:
-    #         #         self.effective_rules = [self.rules[i] for i in effective_rule_indices]
-    #         #
-    #         #     y_train_preds = self.predict_with_specific_rules(x_tr, rule_indices=effective_rule_indices)
-    #         #     y_train_preds =
-    #         #     y_test_preds = self.predict_with_specific_rules(x_te, rule_indices=effective_rule_indices)
-    #         #     final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
-    #         #     acc_new.append(final_metrics['accuracy_train'])
-    #         #     x_acc_new.append((len(effective_rule_indices)))
-    #         #
-    #         #     if lars_verbose:
-    #         #         print(f'Ile ma niezerową wartość w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step),
-    #         #               np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
-    #         #         print(final_metrics)
-    #         #         print()
-    #
-    #         if lars_show_accuracy_graph:
-    #             plt.figure(figsize=(10, 7))
-    #             plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'], label='Old rules, train dataset', c='b')
-    #             plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'], label='Old rules, test dataset', linestyle='dashed', c='b')
-    #             plt.plot(x_acc_new, train_acc, label='Pruned rules, Embedded, train dataset', c='r')
-    #             plt.plot(x_acc_new, test_acc, label='Pruned rules, Embedded, test dataset', linestyle='dashed', c='r')
-    #
-    #             plt.grid()
-    #             plt.ylabel("Accuracy")
-    #             plt.xlabel("Rules")
-    #             plt.title("Accuracy vs no. rules")
-    #             plt.legend()
-    #             plt.savefig(os.path.join('Plots',
-    #                                      'pruning',
-    #                                      'Embedded',
-    #                                      f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-    #             plt.show()
-    #         if lars_show_path:
-    #             xx = np.sum(np.abs(coefs.T), axis=1)
-    #             xx /= xx[-1]
-    #
-    #             plt.figure(figsize=(10, 7))
-    #             plt.plot(xx, coefs.T)
-    #             ymin, ymax = plt.ylim()
-    #             # plt.vlines(xx, ymin, ymax, linestyle="dashed")
-    #             plt.xlabel("|coef| / max|coef|")
-    #             plt.ylabel("Coefficients")
-    #             plt.title("LASSO Path")
-    #             plt.axis("tight")
-    #             plt.savefig(
-    #                 os.path.join('Plots',
-    #                              'pruning',
-    #                              'Embedded',
-    #                              f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-    #             plt.show()
-    #         return
-    #     else:
-    #         raise Exception("Choose right regressor for pruning!")
-    #     # pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=3.5*10e-3)
-    #
-    #     pruning_model.fit(rule_feature_matrix, self.y)
-    #     # print('koef')
-    #     # print(pruning_model.coef_)
-    #
-    #     # mean_abs_coef = np.sum(np.abs(pruning_model.coef_), axis=0)
-    #     # # Indeksy cech posortowane według średniej wartości bezwzględnej wag
-    #     # sorted_feature_indices = np.argsort(mean_abs_coef)[::-1]
-    #     # # Wyświetlanie wyników
-    #     # print("Najważniejsze cechy wejściowe (posortowane według średniej wartości bezwzględnej wag):")
-    #     # for idx in sorted_feature_indices:
-    #     #     print(f"Cecha {idx}: {mean_abs_coef[idx]}")
-    #
-    #     weights = np.sum(np.abs(pruning_model.coef_), axis=0)
-    #     # weights = np.absolute(weights)
-    #     # print(multioutput_regressor.estimators_[0].coef_[0])
-    #     # print(weights)
-    #     # consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
-    #     # print(consolidated_weights)
-    #
-    #     # effective_rule_indices = np.argsort(consolidated_weights)[::-1]
-    #     effective_rule_indices = np.argsort(weights)[::-1]
-    #     # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
-    #     # effective_rule_indices += 1
-    #
-    #     self.effective_rules = []
-    #     for rule_index in effective_rule_indices:
-    #         if abs(weights[rule_index]) > 10e-5:
-    #             self.effective_rules.append(self.rules[rule_index])
-    #     # print(self.effective_rules)
-    #
-    #     # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
-    #     # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
-    #     print(
-    #         f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
-
-    # def __getstate__(self):
-    #     self_dict = self.__dict__.copy()
-    #     del self_dict['pool']
-    #     return self_dict

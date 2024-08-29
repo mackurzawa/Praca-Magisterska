@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/2176da6b01f74475871773583c6c21c3/artifacts
+end_time: 1724261485486
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 2176da6b01f74475871773583c6c21c3
+run_name: able-chimp-68
+run_uuid: 2176da6b01f74475871773583c6c21c3
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1724261462471
+status: 3
+tags: []
+user_id: Maciej

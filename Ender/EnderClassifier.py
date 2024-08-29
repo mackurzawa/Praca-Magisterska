@@ -2,8 +2,11 @@ import math
 import random
 import numpy as np
 from collections import Counter
+from tqdm import tqdm
+from matplotlib import pyplot as plt
+import os
 
-import pandas as pd
+
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.metrics import accuracy_score
@@ -14,12 +17,11 @@ from CalculateMetrics import calculate_all_metrics, calculate_accuracy
 USE_LINE_SEARCH = False
 PRE_CHOSEN_K = True
 INSTANCE_WEIGHT = 1
-# nu = 0.8
 R = 5
 Rp = 1e-5
 
 
-class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
+class EnderClassifier(BaseEstimator, ClassifierMixin):
     pool = None
 
     def __init__(self, dataset_name=None, n_rules=100, use_gradient=True, optimized_searching_for_cut=False, nu=1,
@@ -64,6 +66,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         self.max_k = None
         self.effective_rules = None
 
+        plt.style.use('ggplot')
+
     def fit(self, X, y, X_test=None, y_test=None):
         self.attribute_names = X.columns
         X, y = check_X_y(X, y)
@@ -94,11 +98,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         if self.verbose: print("Default rule:", self.default_rule)
         i_rule = 0
         while i_rule < self.n_rules:
-            # for i_rule in range(self.n_rules):
             if self.verbose:
                 print('####################################################################################')
                 print(f"Rule: {i_rule + 1}")
-            print(f"Rule: {i_rule + 1}")
             self.covered_instances = self.resampling()
             rule = self.create_rule()
 
@@ -149,47 +151,15 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         creating = True
         EPSILON = 1e-8
         count = 0
-        # self.file.write(f"create next ({len(self.rules) + 1}) rule\n")
         while creating:
             count += 1
             best_attribute = -1
             cut = Cut()
-            # print()
-            # print(self.probability)
-            # print(self.max_k)
-
-            # self.file.write(f"Adding next ({count}) attribute\n")
             for attribute in range(len(self.X[0])):
                 cut = self.find_best_cut(attribute)
                 if cut.empirical_risk < best_cut.empirical_risk - EPSILON:
                     best_cut = cut
                     best_attribute = attribute
-                # if attribute == 24: raise
-            # if count == 2 and len(self.rules) == 1: raise
-            # raise
-                # raise
-            # attribute_indices = list(range(len(self.X[0])))
-            # # print(attribute_indices)
-            # with Pool(processes=multiprocessing.cpu_count()) as pool:
-            #     print('przed')
-            #     cuts = pool.map(self._worker, [attr for attr in attribute_indices])
-            #     print('po')
-            # # with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
-            # #     # Przekazujemy krotki (self, attr) do _worker
-            # #     futures = [executor.submit(self._worker, attr) for attr in attribute_indices]
-            # #
-            # #     # Pobieramy wyniki
-            # #     cuts = [future.result() for future in concurrent.futures.as_completed(futures)]
-            # for i_cut, cut in enumerate(cuts):
-            #     # print(cut.empirical_risk)
-            #     if cut.empirical_risk < best_cut.empirical_risk - EPSILON:
-            #         best_cut = cut
-            #         best_attribute = i_cut
-
-            # best_attribute = np.argmin([cut.empirical_risk for cut in cuts])
-            # best_cut = cuts[best_attribute]
-            # print(best_attribute)
-            # print(best_cut)
 
             if best_attribute == -1 or not best_cut.exists:
                 creating = False
@@ -197,7 +167,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 rule.add_condition(best_attribute, best_cut.value, best_cut.direction,
                                    self.attribute_names[best_attribute])
                 self.mark_covered_instances(best_attribute, best_cut)
-        # raise
         if best_cut.exists:
 
             decision = self.compute_decision()
@@ -224,37 +193,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         else:
             return None
 
-    # def _worker(self, attribute):
-    #     print('wszedl')
-    #     x = self.find_best_cut(attribute)
-    #     print('wyszedl')
-    #     return x
-
-
-    def calculate_current_optimized_cuts(self):
-        self.indices_for_better_cuts = {}
-        print(np.array(self.covered_instances) == 1)
-        y_2d = self.y[np.array(self.covered_instances) == 1]
-        print(y_2d)
-        # raise
-        for i_attr, indices_in_order in enumerate(self.inverted_list):
-            self.indices_for_better_cuts[i_attr] = []
-
-            for i_index in range(len(indices_in_order) - 1):
-                if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]]:
-                    self.indices_for_better_cuts[i_attr].append([i_index, i_index + 1])
-        print(self.indices_for_better_cuts)
-        suma = 0
-        for key in self.indices_for_better_cuts.keys():
-            print(f"Key: {key} {len(self.indices_for_better_cuts[key])}")
-            suma += len(self.indices_for_better_cuts[key])
-        print(f"Out of {len(self.inverted_list[0])}")
-        print(f'now sum: {suma}')
-        print(f'old sum: {len(self.inverted_list[0]) * len(self.inverted_list)}')
-
     def find_best_cut(self, attribute):
-        # print()
-        # print('attribute:', attribute)
         best_cut = Cut()
         best_cut.position = -1
         best_cut.exists = False
@@ -284,7 +223,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         if self.covered_instances[curr_position] == 1:
                             count += 1
                             curr_value = self.X[curr_position][attribute]
-                            weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
+                            weight = 1
 
                             if previous_value != curr_value:
                                 if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
@@ -304,23 +243,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                             previous_value = self.X[curr_position][attribute]
 
                         i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
-                # else:
-                #     current_risk = 0
-                #     risks = []
-                #     for (added_risk, previous_value, curr_value, i) in empirical_risks[::-1]:
-                #         current_risk += added_risk
-                #         risks.append(current_risk)
-                #     # if attribute == 24: print(risks)
-                #     for j in indices_to_check:
-                #         added_risk, previous_value, curr_value, i = empirical_risks[::-1][j]
-                #         # if attribute == 24: print(j)
-                #         if previous_value != curr_value:
-                #             if risks[j] < best_cut.empirical_risk - EPSILON:
-                #                 # print(j, previous_value, curr_value, risks[j])
-                #                 best_cut.direction = 1
-                #                 best_cut.value = (previous_value + curr_value) / 2
-                #                 best_cut.empirical_risk = risks[j]
-                #                 best_cut.exists = True
                 else:
                     current_risk = 0
                     risks = []
@@ -328,12 +250,10 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         current_risk += added_risk
                         risks.append(current_risk)
                     risks = risks[::-1]
-                   # if attribute == 24: print(risks)
                     for j in indices_to_check:
                         added_risk, previous_value, curr_value, i = empirical_risks[j]
                         if previous_value != curr_value:
                             if risks[j] < best_cut.empirical_risk - EPSILON:
-                               # print(j, previous_value, curr_value, risks[j])
                                 best_cut.direction = 1
                                 best_cut.value = (previous_value + curr_value) / 2
                                 best_cut.empirical_risk = risks[j]
@@ -350,7 +270,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                         curr_position = self.inverted_list[attribute][i]
                         if self.covered_instances[curr_position] == 1:
                             curr_value = self.X[curr_position][attribute]
-                            weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
+                            weight = 1
 
                             if previous_value != curr_value:
                                 if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
@@ -369,12 +289,8 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     risk = 0
                     for j, (added_risk, previous_value, curr_value) in enumerate(empirical_risks[::-1]):
                         risk += added_risk
-                        # if attribute == 24: print(risk, end=', ')
-                        # if attribute == 24: print(previous_value, curr_value)
-                        # print(risk)
                         if previous_value != curr_value:
                             if risk < best_cut.empirical_risk - EPSILON:
-                                # if attribute == 24: print(j, previous_value, curr_value, risk)
                                 best_cut.direction = 1
                                 best_cut.value = (previous_value + curr_value) / 2
                                 best_cut.empirical_risk = risk
@@ -390,9 +306,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     count += 1
                     curr_position = self.inverted_list[attribute][i]
                     if self.covered_instances[curr_position] == 1:
-                        if True:  # TODO ismissing(attribute)
+                        if True:
                             curr_value = self.X[curr_position][attribute]
-                            weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
+                            weight = 1
 
                             if previous_value != curr_value:
                                 if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
@@ -412,7 +328,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     def mark_covered_instances(self, best_attribute, cut):
         for i in range(len(self.X)):
             if self.covered_instances[i] != -1:
-                # is missing ...
                 value = self.X[i][best_attribute]
                 if (value < cut.value and cut.direction == 1) or (value > cut.value and cut.direction == -1):
                     self.covered_instances[i] = -1
@@ -431,8 +346,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 gradient_difference += INSTANCE_WEIGHT * weight
             self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
             gradient_difference -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
-            # temp
-            # print(next_position, temp - self.probability[next_position][self.max_k])
             if self.use_gradient:
                 return -self.gradient, -gradient_difference
             else:
@@ -445,12 +358,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
     def compute_current_empirical_risk(self, next_position, weight):
         if PRE_CHOSEN_K:
-            # temp = 0
             if self.y[next_position] == self.max_k:
                 self.gradient += INSTANCE_WEIGHT * weight
-                # temp += INSTANCE_WEIGHT * weight
             self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
-            # print(next_position, temp - self.probability[next_position][self.max_k])
             if self.use_gradient:
                 return -self.gradient
             else:
@@ -459,30 +369,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 return - self.gradient * abs(self.gradient) / self.hessian
         else:
             raise
-
-    # def compute_current_empirical_risk_optimized(self, curr_index, attribute, weight):
-    #     if PRE_CHOSEN_K:
-    #         # if self.y[next_position] == self.max_k:
-    #         #     self.gradient += INSTANCE_WEIGHT * weight
-    #         # self.gradient -= INSTANCE_WEIGHT * weight * self.probability[next_position][self.max_k]
-    #
-    #         if self.use_gradient:
-    #             for i in range(self.last_index_computation_of_empirical_risk, curr_index + 1):
-    #                 object_index = self.inverted_list[attribute][i]
-    #                 # print("adding gradient for object number:", object_index)
-    #                 if self.y[object_index] == self.max_k:
-    #                     self.gradient += INSTANCE_WEIGHT * weight
-    #                 self.gradient -= INSTANCE_WEIGHT * weight * self.probability[object_index][self.max_k]
-    #                 object_index += 1
-    #             # print(-self.gradient, "next_position:", next_position)
-    #             self.last_index_computation_of_empirical_risk = curr_index + 1
-    #             return -self.gradient
-    #         else:
-    #             self.hessian += INSTANCE_WEIGHT * weight * (Rp + self.probability[next_position][self.max_k] * (
-    #                     1 - self.probability[next_position][self.max_k]))
-    #             return - self.gradient * abs(self.gradient) / self.hessian
-    #     else:
-    #         raise
 
     def create_default_rule(self):
         self.initialize_for_rule()
@@ -549,31 +435,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
     def create_inverted_list(self, X):
         import numpy as np
-        # print(pd.DataFrame(X))
         X = np.array(X)
         sorted_indices = np.argsort(X, axis=0)
         self.inverted_list = sorted_indices.T
-        # print('self.inverted_list:')
-        # print(self.inverted_list)
         temp = self.inverted_list.copy()
         temp = np.array([[self.y[temp[i][j]] for j in range(len(temp[0]))] for i in range(len(temp))])
-        # print(temp)
-        if self.optimized_searching_for_cut:
-            self.indices_for_better_cuts = {}
-            for i_attr, indices_in_order in enumerate(self.inverted_list):
-                self.indices_for_better_cuts[i_attr] = []
-
-                for i_index in range(len(indices_in_order) - 1):
-                    if self.y[self.inverted_list[i_attr][i_index]] != self.y[self.inverted_list[i_attr][i_index + 1]]:
-                        self.indices_for_better_cuts[i_attr].append([i_index, i_index + 1])
-            # print(self.indices_for_better_cuts)
-            suma = 0
-            for key in self.indices_for_better_cuts.keys():
-                print(f"Key: {key} {len(self.indices_for_better_cuts[key])}")
-                suma += len(self.indices_for_better_cuts[key])
-            print(f"Out of {len(self.inverted_list[0])}")
-            print(f'now sum: {suma}')
-            print(f'old sum: {len(self.inverted_list[0]) * len(self.inverted_list)}')
 
     def update_value_of_f(self, decision):
         for i in range(len(self.X)):
@@ -590,7 +456,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         value_of_f_instance = np.array(self.default_rule)
         rules = self.rules
         for rule in rules:
-            # value_of_f_instance = [elem_1 + elem_2 for elem_1, elem_2 in zip(value_of_f_instance, rule.classify_instance(x))]
             value_of_f_instance += rule.classify_instance(x)
         return value_of_f_instance
 
@@ -605,13 +470,10 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         return np.array(preds)
 
     def score(self, X, y):
-        # Upewnij się, że model jest dopasowany
         check_is_fitted(self, 'is_fitted_')
 
-        # Upewnij się, że dane są poprawne
         X, y = check_X_y(X, y)
 
-        # Przykładowa implementacja oceny jako accuracy
         predictions = self.predict(X)
         accuracy = accuracy_score(y, predictions)
 
@@ -669,7 +531,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
     def filter_pruning_one_method(self, method, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.feature_selection import SelectKBest
         from sklearn.linear_model import LogisticRegression
-        from tqdm import tqdm
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -687,9 +548,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                 if rule_is_chosen:
                     chosen_rules.append(rule_index)
 
-            classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
-                                            random_state=self.random_state,
-                                            max_iter=200)
+            classifier = LogisticRegression(
+                # multi_class='auto', penalty='l1', solver='saga',
+                random_state=self.random_state,
+                max_iter=200
+            )
 
             X_train_new = np.array(rule_feature_matrix_train)[:, chosen_rules]
             X_test_new = np.array(rule_feature_matrix_test)[:, chosen_rules]
@@ -705,12 +568,11 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
     def filter_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
         from sklearn.feature_selection import chi2, f_classif, mutual_info_classif
-        import matplotlib.pyplot as plt
-        import os
 
         print("\tChi 2:")
         chi2_train_acc, chi2_test_acc = self.filter_pruning_one_method(chi2, rule_feature_matrix_train,
                                                                        rule_feature_matrix_test, **kwargs)
+
         print("\tAnova:")
         anova_train_acc, anova_test_acc = self.filter_pruning_one_method(f_classif, rule_feature_matrix_train,
                                                                          rule_feature_matrix_test, **kwargs)
@@ -720,26 +582,27 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                                                                                      rule_feature_matrix_test, **kwargs)
 
         if verbose:
-            plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
-            plt.plot(list(range(self.n_rules + 1)), chi2_train_acc, label='Pruned rules Filter Chi2, train dataset',
-                     c='g')
-            plt.plot(list(range(self.n_rules + 1)), anova_train_acc, label='Pruned rules Filter Anova, train dataset',
+            plt.figure(figsize=(14, 10))
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), chi2_train_acc, label='Pruned rules Filter Chi-squared, train dataset',
+                     c='r')
+            plt.plot(list(range(self.n_rules + 1)), anova_train_acc, label='Pruned rules Filter ANOVA, train dataset',
                      c='y')
             plt.plot(list(range(self.n_rules + 1)), mutual_info_train_acc,
-                     label='Pruned rules Filter Mutual_Info, train dataset', c='k')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Pruned rules Filter Mutual info, train dataset', c='k')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), chi2_test_acc, label='Pruned rules Filter Chi2, test dataset',
-                     c='g', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), anova_test_acc, label='Pruned rules Filter Anova, test dataset',
+            plt.plot(list(range(self.n_rules + 1)), chi2_test_acc, label='Pruned rules Filter Chi-squared, test dataset',
+                     c='r', linestyle='dashed')
+            plt.plot(list(range(self.n_rules + 1)), anova_test_acc, label='Pruned rules Filter ANOVA, test dataset',
                      c='y', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), mutual_info_test_acc,
-                     label='Pruned rules Filter Mutual_Info, test dataset', c='k', linestyle='dashed')
+                     label='Pruned rules Filter Mutual info, test dataset', c='k', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nFilter methods')
+            plt.title('Comparison Between Filter Methods Against Baseline Rules', wrap=True)
+            plt.tight_layout()
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -750,9 +613,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         return
 
     def my_idea_wrapper_pruning(self, verbose=True, **kwargs):
-        from tqdm import tqdm
-        from matplotlib import pyplot as plt
-        import os
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -801,24 +661,26 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             test_acc_downward.insert(0, calculate_accuracy(y_test,
                                                            self.predict_with_specific_rules(X_test, indices_in_use)))
 
+        # train_acc_upward = [0.50125, 0.7, 0.76375, 0.7825, 0.77875, 0.78875, 0.78875, 0.78875, 0.80375, 0.795, 0.79625, 0.8025, 0.80125, 0.8025, 0.81125, 0.81625, 0.81625, 0.81125, 0.81, 0.81125, 0.81875, 0.8125, 0.8075, 0.8225, 0.83125, 0.82875, 0.835, 0.835, 0.84375, 0.8375, 0.8375, 0.84, 0.835, 0.83625, 0.83625, 0.83625, 0.83875, 0.835, 0.835, 0.8325, 0.825, 0.83875, 0.83625, 0.83875, 0.8425, 0.845, 0.84, 0.8425, 0.8425, 0.84875, 0.84625, 0.83875, 0.84875, 0.85, 0.85125, 0.85375, 0.8475, 0.845, 0.84125, 0.8425, 0.8425, 0.84375, 0.83875, 0.84, 0.8375, 0.8425, 0.84375, 0.8425, 0.84375, 0.84125, 0.8425, 0.8375, 0.83875, 0.835, 0.85, 0.85, 0.8575, 0.85375, 0.85625, 0.865, 0.86375, 0.865, 0.8625, 0.865, 0.86625, 0.85875, 0.8625, 0.86, 0.8675, 0.86125, 0.85875, 0.8575, 0.8625, 0.86375, 0.85875, 0.85625, 0.855, 0.85125, 0.84875, 0.855, 0.8575]
         if verbose:
-            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
+            # print(f"Rules order up: {rules_indices_upward} Accuracies: {test_acc_upward}")
+            # print(f"Rules order down: {rules_indices_downward} Accuracies: {test_acc_downward}")
             plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
             plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
-                     label='Pruned rules My Idea Wrapper upward, train dataset', c='g')
+                     label='Proposed forward selection, train dataset', c='g')
             plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
-                     label='Pruned rules My Idea Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Proposed backward elimination, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_upward,
-                     label='Pruned rules My Idea Wrapper upward, test dataset', c='g', linestyle='dashed')
+                     label='Proposed forward selection, test dataset', c='g', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
-                     label='Pruned rules My Idea Wrapper downward, test dataset', c='y', linestyle='dashed')
+                     label='Proposed backward elimination, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nMy idea Wrapper method')
+            plt.title('Comparison Between Proposed Methods Against Baseline Rules')
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -829,9 +691,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         return
 
     def wrapper_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, verbose=True, **kwargs):
-        from tqdm import tqdm
-        from matplotlib import pyplot as plt
-        import os
         from sklearn.linear_model import LogisticRegression
 
         X_train = kwargs['x_tr']
@@ -854,7 +713,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
                 classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
                                                 random_state=self.random_state)
-                # classifier = svm.SVC(random_state=42)
 
                 classifier.fit(X_train_new, y_train)
                 y_train_preds = classifier.predict(X_train_new)
@@ -866,7 +724,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
                     max_acc_index = i
                     max_classifier = classifier
             rules_indices_upward.append(max_acc_index)
-            # print('Indices', rules_indices_upward)
             X_test_new = np.array(rule_feature_matrix_test)[:, rules_indices_upward]
             y_test_preds = max_classifier.predict(X_test_new)
             max_acc_test = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
@@ -874,7 +731,7 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
             train_acc_upward.append(max_acc)
             test_acc_upward.append(max_acc_test)
 
-        # DOWNWARD
+        # # DOWNWARD
         print("\tDownward")
         rules_indices_downward = []
         classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', random_state=self.random_state)
@@ -895,8 +752,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
                 classifier = LogisticRegression(multi_class='auto', penalty='l1', solver='saga',
                                                 random_state=self.random_state)
-                # classifier = svm.SVC(random_state=42)
-
                 classifier.fit(X_train_new, y_train)
                 y_train_preds = classifier.predict(X_train_new)
                 current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
@@ -917,25 +772,37 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         train_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
         test_acc_downward.insert(0, calculate_accuracy(y_train, self.predict_with_specific_rules(X_train, [])))
         #
+        # rules_indices_upward = [45, 55, 6, 99, 52, 4, 81, 64, 72, 40, 53, 73, 67, 13, 95, 89, 62, 85, 15, 7, 68, 19, 5, 49, 61, 63, 71, 66, 46, 2, 43, 33, 44, 22, 92, 0, 70, 11, 9, 20, 75, 34, 48, 58, 59, 88, 65, 41, 25, 24, 35, 82, 77, 27, 18, 78, 74, 98, 29, 47, 38, 54, 17, 51, 14, 50, 16, 86, 96, 87, 21, 39, 80, 28, 1, 32, 12, 91, 36, 30, 10, 57, 84, 8, 93, 31, 94, 79, 83, 56, 23, 3, 42, 97, 76, 60, 69, 26, 90, 37]
+        # test_acc_upward = [0.50125, 0.695, 0.7125, 0.7625, 0.78375, 0.8125, 0.81125, 0.815, 0.8125, 0.81625, 0.8125, 0.7975, 0.7975, 0.82375, 0.8225, 0.82125, 0.82625, 0.82375, 0.82375, 0.82375, 0.82625, 0.81875, 0.81875, 0.82, 0.81625, 0.8225, 0.8375, 0.8325, 0.83375, 0.83875, 0.84375, 0.84125, 0.84125, 0.84375, 0.83625, 0.84375, 0.8375, 0.8375, 0.84, 0.83875, 0.84125, 0.84, 0.84, 0.84, 0.84, 0.84125, 0.84375, 0.845, 0.845, 0.8475, 0.845, 0.8475, 0.85, 0.85375, 0.85375, 0.8525, 0.85125, 0.84625, 0.845, 0.84875, 0.84875, 0.84875, 0.85125, 0.85, 0.85, 0.8425, 0.83625, 0.83625, 0.83625, 0.83625, 0.84125, 0.84, 0.83875, 0.8375, 0.84375, 0.845, 0.845, 0.84125, 0.8375, 0.8375, 0.84125, 0.8425, 0.84, 0.83125, 0.83, 0.83125, 0.835, 0.83, 0.83, 0.82625, 0.82375, 0.83, 0.82875, 0.8275, 0.83125, 0.83, 0.83125, 0.83, 0.83875, 0.84375, 0.83875]
+        # train_acc_upward = [0.5009375, 0.7115625, 0.74125, 0.7803125, 0.7971875, 0.81, 0.8278125, 0.83375, 0.8396875, 0.8425, 0.8525, 0.86, 0.8659375, 0.8671875, 0.870625, 0.8740625, 0.87625, 0.8775, 0.8778125, 0.8778125, 0.8775, 0.8775, 0.88, 0.880625, 0.8809375, 0.88125, 0.883125, 0.8834375, 0.885, 0.8875, 0.890625, 0.8928125, 0.8953125, 0.8975, 0.9, 0.9025, 0.904375, 0.9071875, 0.9103125, 0.9103125, 0.910625, 0.9115625, 0.911875, 0.911875, 0.911875, 0.9115625, 0.913125, 0.9134375, 0.9128125, 0.9134375, 0.9121875, 0.9128125, 0.915625, 0.9159375, 0.91625, 0.9159375, 0.915625, 0.9159375, 0.919375, 0.92, 0.920625, 0.92, 0.92, 0.9203125, 0.92, 0.9190625, 0.9209375, 0.920625, 0.92, 0.9225, 0.9253125, 0.9253125, 0.925625, 0.9246875, 0.9253125, 0.9259375, 0.92625, 0.92625, 0.9259375, 0.92625, 0.925625, 0.925625, 0.9259375, 0.9275, 0.9271875, 0.92625, 0.92625, 0.9259375, 0.9290625, 0.92875, 0.9303125, 0.9303125, 0.93125, 0.930625, 0.93125, 0.9315625, 0.9315625, 0.9309375, 0.93, 0.9303125, 0.92875]
+        #
+        #
+        # rules_indices_downward = [55, 84, 89, 97, 46, 80, 71, 51, 64, 96, 26, 90, 48, 25, 81, 74, 43, 49, 83, 22, 59, 54, 60, 98, 53, 70, 6, 63, 78, 82, 85, 94, 87, 10, 61, 42, 0, 50, 66, 77, 40, 75, 92, 88, 79, 36, 86, 69, 41, 24, 73, 23, 72, 12, 1, 11, 99, 7, 95, 20, 91, 27, 38, 5, 28, 58, 30, 56, 15, 44, 65, 57, 18, 39, 47, 33, 52, 35, 31, 93, 29, 14, 62, 17, 4, 13, 34, 21, 16, 9, 8, 68, 32, 76, 3, 2, 19, 37, 67]
+        # test_acc_downward = [0.5009375, 0.695, 0.7125, 0.72625, 0.74875, 0.74875, 0.7675, 0.76875, 0.75875, 0.765, 0.79, 0.78125, 0.78, 0.775, 0.77125, 0.79625, 0.805, 0.8125, 0.80375, 0.81375, 0.8125, 0.81875, 0.81875, 0.815, 0.82375, 0.825, 0.81875, 0.82125, 0.825, 0.83, 0.83125, 0.82875, 0.82625, 0.82125, 0.82, 0.81875, 0.82, 0.82125, 0.82375, 0.82625, 0.82625, 0.82875, 0.82375, 0.8275, 0.83625, 0.83375, 0.835, 0.8325, 0.8325, 0.8325, 0.83375, 0.8375, 0.83375, 0.83625, 0.83375, 0.83625, 0.835, 0.8375, 0.8375, 0.83125, 0.82875, 0.83, 0.83, 0.83375, 0.8375, 0.8375, 0.8375, 0.8375, 0.83625, 0.83375, 0.83625, 0.83375, 0.835, 0.83625, 0.83625, 0.83125, 0.83125, 0.83, 0.83375, 0.835, 0.835, 0.835, 0.835, 0.835, 0.83625, 0.83625, 0.835, 0.835, 0.83, 0.83, 0.83, 0.83, 0.83125, 0.83, 0.8325, 0.8325, 0.83375, 0.83375, 0.83375, 0.835, 0.83875]
+        # train_acc_downward = [0.5009375, 0.7115625, 0.74125, 0.7659375, 0.7878125, 0.7878125, 0.805625, 0.808125, 0.8178125, 0.8296875, 0.8359375, 0.8428125, 0.8496875, 0.8540625, 0.859375, 0.8678125, 0.8709375, 0.875, 0.87875, 0.881875, 0.8865625, 0.890625, 0.8934375, 0.89875, 0.8996875, 0.9021875, 0.9053125, 0.90875, 0.91125, 0.91375, 0.9140625, 0.9159375, 0.9178125, 0.9184375, 0.919375, 0.920625, 0.9203125, 0.9215625, 0.923125, 0.924375, 0.9265625, 0.9275, 0.9290625, 0.929375, 0.9309375, 0.93125, 0.930625, 0.933125, 0.931875, 0.9328125, 0.9346875, 0.9340625, 0.9340625, 0.933125, 0.9334375, 0.9328125, 0.93375, 0.9340625, 0.9334375, 0.935, 0.935, 0.935625, 0.9353125, 0.9340625, 0.9340625, 0.9334375, 0.934375, 0.934375, 0.935, 0.9353125, 0.9353125, 0.935625, 0.9359375, 0.935625, 0.935625, 0.935625, 0.9359375, 0.9359375, 0.935625, 0.9359375, 0.93625, 0.93625, 0.9365625, 0.9365625, 0.93625, 0.93625, 0.93625, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.9359375, 0.935625, 0.9346875, 0.9340625, 0.9340625, 0.9340625, 0.9328125, 0.93125, 0.92875]
+
         if verbose:
-            print(f"Rules order: {rules_indices_upward} Accuracies: {test_acc_upward}")
-            print(f"Rules order: {rules_indices_downward} Accuracies: {test_acc_downward}")
-            plt.figure(figsize=(20, 14))
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Old rules, train dataset', c='b')
+            print("history train", self.history['accuracy'])
+            print("history test", self.history['accuracy_test'])
+            print(f"Rules order: {rules_indices_upward} Accuracies test: {test_acc_upward}, Accuracies train: {train_acc_upward}")
+            print(f"Rules order: {rules_indices_downward} Accuracies test: {test_acc_downward}, Accuracies train {train_acc_downward}")
+            plt.figure(figsize=(14, 10))
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy'], label='Baseline rules, train dataset', c='b')
             plt.plot(list(range(self.n_rules + 1)), train_acc_upward,
-                     label='Pruned rules Wrapper upward, train dataset', c='g')
+                     label='Forward selection, train dataset', c='g')
             plt.plot(list(range(self.n_rules + 1)), train_acc_downward,
-                     label='Pruned rules Wrapper downward, train dataset', c='y')
-            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Old rules, test dataset',
+                     label='Backward elimination, train dataset', c='y')
+            plt.plot(list(range(self.n_rules + 1)), self.history['accuracy_test'], label='Baseline rules, test dataset',
                      c='b', linestyle='dashed')
-            plt.plot(list(range(self.n_rules + 1)), test_acc_upward, label='Pruned rules Wrapper upward, test dataset',
+            plt.plot(list(range(self.n_rules + 1)), test_acc_upward, label='Forward selection, test dataset',
                      c='g', linestyle='dashed')
             plt.plot(list(range(self.n_rules + 1)), test_acc_downward,
-                     label='Pruned rules Wrapper downward, test dataset', c='y', linestyle='dashed')
+                     label='Backward elimination, test dataset', c='y', linestyle='dashed')
             plt.legend()
             plt.xlabel("Rules")
             plt.ylabel("Accuracy")
-            plt.title('Train/Test accuracy with pruned vs non-pruned rules\nWrapper method')
+            plt.title('Comparison Between Wrapper Methods Against Baseline Rules', wrap=True)
+            plt.tight_layout()
             plt.savefig(
                 os.path.join('Plots',
                              'Pruning',
@@ -948,7 +815,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
     def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
         from sklearn.linear_model import LogisticRegression
-        from tqdm import tqdm
 
         X_train = kwargs['x_tr']
         X_test = kwargs['x_te']
@@ -965,7 +831,6 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         for alpha in tqdm(alphas):
             pruning_model = LogisticRegression(multi_class='multinomial', penalty='l1', solver='saga', C=alpha,
                                                max_iter=10000)
-            # pruning_model = LogisticRegression(multi_class='auto', penalty='l2', solver='saga', C=alpha)
             pruning_model.fit(rule_feature_matrix_train, y_train)
 
             y_train_preds = pruning_model.predict(rule_feature_matrix_train)
@@ -984,18 +849,22 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         alphas = [0] + alphas
         fig, ax = plt.subplots(1, 3, figsize=(21, 7))
-        ax[0].set_title("Regularization (C) vs rule number")
+        ax[0].set_title("Impact of Regularization\non Ensemble Size", wrap=True)
         ax[0].plot(alphas, active_rule_number)
         ax[0].scatter(alphas, active_rule_number)
         ax[0].set_xscale('log')
+        ax[0].set_xlabel('1/λ')
+        ax[0].set_ylabel("Rules in ensemble")
         ###
-        ax[1].set_title('Regularization (C) vs accuracy')
+        ax[1].set_title('Impact of Regularization\non Accuracy', wrap=True)
         ax[1].plot(alphas, train_acc, label='Train accuracy')
         ax[1].plot(alphas, test_acc, label='Test accuracy')
         ax[1].set_xscale('log')
+        ax[1].set_xlabel('1/λ')
+        ax[1].set_ylabel("Accuracy")
         ax[1].legend()
         ###
-        ax[2].set_title("Rule number vs accuracy")
+        ax[2].set_title("Relationship Between Ensemble Size\nand Accuracy", wrap=True)
         ax[2].plot(range(self.n_rules + 1), self.history['accuracy'], label='Old rules, Train dataset', c='b')
         ax[2].plot(range(self.n_rules + 1), self.history['accuracy_test'], label='Old rules, Test dataset', c='b',
                    linestyle='dashed')
@@ -1004,6 +873,9 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
         ax[2].scatter(active_rule_number, train_acc, c='r')
         ax[2].scatter(active_rule_number, test_acc, c='r')
         ax[2].legend()
+        ax[2].set_xlabel('Rules in the ensemble')
+        ax[2].set_ylabel("Accuracy")
+        plt.tight_layout()
         plt.savefig(
             os.path.join('Plots',
                          'Pruning',
@@ -1013,291 +885,3 @@ class EnderClassifier(BaseEstimator, ClassifierMixin):  # RegressorMixin
 
         plt.show()
         return
-        raise
-        if False:
-
-            lars_how_many_rules = 1
-            lars_verbose = True
-            lars_show_accuracy_graph = True
-            lars_show_path = True
-
-            train_acc = []
-            results_train = np.array(rule_feature_matrix_train) @ coefs
-            results_train[results_train > 0.5] = 1
-            results_train[results_train <= 0.5] = 0
-            for y_train_preds in results_train.T:
-                current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)]) / len(y_train)
-                train_acc.append(current_acc)
-
-            test_acc = []
-            results_test = np.array(rule_feature_matrix_test) @ coefs
-            threshold = 0.5
-            results_test[results_test > threshold] = 1
-            results_test[results_test <= threshold] = 0
-            for y_test_preds in results_test.T:
-                current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)]) / len(y_test)
-                test_acc.append(current_acc)
-            x_acc_new = list(range(len(results_train[0])))
-
-            # print(results[:5])
-            # for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
-            #     # self.effective_rules = []
-            #     effective_rule_indices = np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]
-            #     if len(effective_rule_indices) == lars_how_many_rules:
-            #         self.effective_rules = [self.rules[i] for i in effective_rule_indices]
-            #
-            #     y_train_preds = self.predict_with_specific_rules(x_tr, rule_indices=effective_rule_indices)
-            #     y_train_preds =
-            #     y_test_preds = self.predict_with_specific_rules(x_te, rule_indices=effective_rule_indices)
-            #     final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
-            #     acc_new.append(final_metrics['accuracy_train'])
-            #     x_acc_new.append((len(effective_rule_indices)))
-            #
-            #     if lars_verbose:
-            #         print(f'Ile ma niezerową wartość w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step),
-            #               np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
-            #         print(final_metrics)
-            #         print()
-
-            if lars_show_accuracy_graph:
-                plt.figure(figsize=(10, 7))
-                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'],
-                         label='Old rules, train dataset', c='b')
-                plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'],
-                         label='Old rules, test dataset', linestyle='dashed', c='b')
-                plt.plot(x_acc_new, train_acc, label='Pruned rules, Embedded, train dataset', c='r')
-                plt.plot(x_acc_new, test_acc, label='Pruned rules, Embedded, test dataset', linestyle='dashed', c='r')
-
-                plt.grid()
-                plt.ylabel("Accuracy")
-                plt.xlabel("Rules")
-                plt.title("Accuracy vs no. rules")
-                plt.legend()
-                plt.savefig(os.path.join('Plots',
-                                         'pruning',
-                                         'Embedded',
-                                         f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-                plt.show()
-            if lars_show_path:
-                xx = np.sum(np.abs(coefs.T), axis=1)
-                xx /= xx[-1]
-
-                plt.figure(figsize=(10, 7))
-                plt.plot(xx, coefs.T)
-                ymin, ymax = plt.ylim()
-                # plt.vlines(xx, ymin, ymax, linestyle="dashed")
-                plt.xlabel("|coef| / max|coef|")
-                plt.ylabel("Coefficients")
-                plt.title("LASSO Path")
-                plt.axis("tight")
-                plt.savefig(
-                    os.path.join('Plots',
-                                 'pruning',
-                                 'Embedded',
-                                 f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-                plt.show()
-            return
-        else:
-            raise Exception("Choose right regressor for pruning!")
-        # pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=3.5*10e-3)
-
-        pruning_model.fit(rule_feature_matrix, self.y)
-        # print('koef')
-        # print(pruning_model.coef_)
-
-        # mean_abs_coef = np.sum(np.abs(pruning_model.coef_), axis=0)
-        # # Indeksy cech posortowane według średniej wartości bezwzględnej wag
-        # sorted_feature_indices = np.argsort(mean_abs_coef)[::-1]
-        # # Wyświetlanie wyników
-        # print("Najważniejsze cechy wejściowe (posortowane według średniej wartości bezwzględnej wag):")
-        # for idx in sorted_feature_indices:
-        #     print(f"Cecha {idx}: {mean_abs_coef[idx]}")
-
-        weights = np.sum(np.abs(pruning_model.coef_), axis=0)
-        # weights = np.absolute(weights)
-        # print(multioutput_regressor.estimators_[0].coef_[0])
-        # print(weights)
-        # consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
-        # print(consolidated_weights)
-
-        # effective_rule_indices = np.argsort(consolidated_weights)[::-1]
-        effective_rule_indices = np.argsort(weights)[::-1]
-        # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
-        # effective_rule_indices += 1
-
-        self.effective_rules = []
-        for rule_index in effective_rule_indices:
-            if abs(weights[rule_index]) > 10e-5:
-                self.effective_rules.append(self.rules[rule_index])
-        # print(self.effective_rules)
-
-        # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
-        # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
-        print(
-            f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
-
-    # def embedded_pruning(self, rule_feature_matrix_train, rule_feature_matrix_test, **kwargs):
-    #     from sklearn.linear_model import Lasso
-    #     from sklearn.linear_model import Ridge
-    #     from sklearn.linear_model import LogisticRegression
-    #     from sklearn.linear_model import lasso_path
-    #     from sklearn.linear_model import lars_path
-    #     from sklearn.multioutput import MultiOutputRegressor
-    #
-    #     X_train = kwargs['x_tr']
-    #     X_test = kwargs['x_te']
-    #     y_train = kwargs['y_tr']
-    #     y_test = kwargs['y_te']
-    #
-    #     regressor = 'LarsPath'
-    #     alpha = 0.1
-    #     if regressor == 'MultiOutputRidge':
-    #         pruning_model = MultiOutputRegressor(Ridge(alpha=alpha))  # Używamy regresji Ridge jako modelu bazowego
-    #     elif regressor == 'LogisticRegressorL1':
-    #         pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=alpha)
-    #     elif regressor == 'LogisticRegressorL2':
-    #         pruning_model = LogisticRegression(multi_class='auto', penalty='l2', C=alpha)
-    #     elif regressor == "LarsPath":
-    #         from matplotlib import pyplot as plt
-    #         import os
-    #         # Coefs is the matrix n_rules X alphas
-    #         # lars = False
-    #         lars = True
-    #         # positive = False
-    #         positive = False
-    #         if not positive and lars:
-    #             _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(y_train),
-    #                                     method="lasso", eps=1, verbose=True)
-    #         # elif positive and lars:
-    #         #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y),
-    #         #                             method="lasso", eps=1, verbose=True, positive=True)
-    #         # # Same as first condition
-    #         # elif not positive and lars:
-    #         #     _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), method="lar",
-    #         #                             eps=1, verbose=True)
-    #         # if not positive and not lars:
-    #         #     _, _, coefs = lasso_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(self.y), eps=1,
-    #         #                              verbose=True)
-    #
-    #         lars_how_many_rules = 1
-    #         lars_verbose = True
-    #         lars_show_accuracy_graph = True
-    #         lars_show_path = True
-    #
-    #         train_acc = []
-    #         results_train = np.array(rule_feature_matrix_train) @ coefs
-    #         results_train[results_train > 0.5] = 1
-    #         results_train[results_train <= 0.5] = 0
-    #         for y_train_preds in results_train.T:
-    #             current_acc = sum([y == y_p for y, y_p in zip(y_train, y_train_preds)])/len(y_train)
-    #             train_acc.append(current_acc)
-    #
-    #         test_acc = []
-    #         results_test = np.array(rule_feature_matrix_test) @ coefs
-    #         threshold = 0.5
-    #         results_test[results_test > threshold] = 1
-    #         results_test[results_test <= threshold] = 0
-    #         for y_test_preds in results_test.T:
-    #             current_acc = sum([y == y_p for y, y_p in zip(y_test, y_test_preds)])/len(y_test)
-    #             test_acc.append(current_acc)
-    #         x_acc_new = list(range(len(results_train[0])))
-    #
-    #         # print(results[:5])
-    #         # for i_coefs_in_step, coefs_in_step in enumerate(coefs.T):
-    #         #     # self.effective_rules = []
-    #         #     effective_rule_indices = np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)]
-    #         #     if len(effective_rule_indices) == lars_how_many_rules:
-    #         #         self.effective_rules = [self.rules[i] for i in effective_rule_indices]
-    #         #
-    #         #     y_train_preds = self.predict_with_specific_rules(x_tr, rule_indices=effective_rule_indices)
-    #         #     y_train_preds =
-    #         #     y_test_preds = self.predict_with_specific_rules(x_te, rule_indices=effective_rule_indices)
-    #         #     final_metrics = calculate_all_metrics(y_tr, y_train_preds, y_te, y_test_preds)
-    #         #     acc_new.append(final_metrics['accuracy_train'])
-    #         #     x_acc_new.append((len(effective_rule_indices)))
-    #         #
-    #         #     if lars_verbose:
-    #         #         print(f'Ile ma niezerową wartość w {i_coefs_in_step}:', np.count_nonzero(coefs_in_step),
-    #         #               np.argsort(coefs_in_step)[::-1][:np.count_nonzero(coefs_in_step)])
-    #         #         print(final_metrics)
-    #         #         print()
-    #
-    #         if lars_show_accuracy_graph:
-    #             plt.figure(figsize=(10, 7))
-    #             plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy'], label='Old rules, train dataset', c='b')
-    #             plt.plot([i for i in range(self.n_rules + 1)], self.history['accuracy_test'], label='Old rules, test dataset', linestyle='dashed', c='b')
-    #             plt.plot(x_acc_new, train_acc, label='Pruned rules, Embedded, train dataset', c='r')
-    #             plt.plot(x_acc_new, test_acc, label='Pruned rules, Embedded, test dataset', linestyle='dashed', c='r')
-    #
-    #             plt.grid()
-    #             plt.ylabel("Accuracy")
-    #             plt.xlabel("Rules")
-    #             plt.title("Accuracy vs no. rules")
-    #             plt.legend()
-    #             plt.savefig(os.path.join('Plots',
-    #                                      'pruning',
-    #                                      'Embedded',
-    #                                      f'Accuracy_while_pruning_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-    #             plt.show()
-    #         if lars_show_path:
-    #             xx = np.sum(np.abs(coefs.T), axis=1)
-    #             xx /= xx[-1]
-    #
-    #             plt.figure(figsize=(10, 7))
-    #             plt.plot(xx, coefs.T)
-    #             ymin, ymax = plt.ylim()
-    #             # plt.vlines(xx, ymin, ymax, linestyle="dashed")
-    #             plt.xlabel("|coef| / max|coef|")
-    #             plt.ylabel("Coefficients")
-    #             plt.title("LASSO Path")
-    #             plt.axis("tight")
-    #             plt.savefig(
-    #                 os.path.join('Plots',
-    #                              'pruning',
-    #                              'Embedded',
-    #                              f'Lars_path_Model_{self.dataset_name}_{lars}_{positive}_{self.n_rules}.png'))
-    #             plt.show()
-    #         return
-    #     else:
-    #         raise Exception("Choose right regressor for pruning!")
-    #     # pruning_model = LogisticRegression(multi_class='auto', penalty='l1', solver='saga', C=3.5*10e-3)
-    #
-    #     pruning_model.fit(rule_feature_matrix, self.y)
-    #     # print('koef')
-    #     # print(pruning_model.coef_)
-    #
-    #     # mean_abs_coef = np.sum(np.abs(pruning_model.coef_), axis=0)
-    #     # # Indeksy cech posortowane według średniej wartości bezwzględnej wag
-    #     # sorted_feature_indices = np.argsort(mean_abs_coef)[::-1]
-    #     # # Wyświetlanie wyników
-    #     # print("Najważniejsze cechy wejściowe (posortowane według średniej wartości bezwzględnej wag):")
-    #     # for idx in sorted_feature_indices:
-    #     #     print(f"Cecha {idx}: {mean_abs_coef[idx]}")
-    #
-    #     weights = np.sum(np.abs(pruning_model.coef_), axis=0)
-    #     # weights = np.absolute(weights)
-    #     # print(multioutput_regressor.estimators_[0].coef_[0])
-    #     # print(weights)
-    #     # consolidated_weights = np.array([np.sum(weights[:, i*self.num_classes:(i+1)*self.num_classes]) for i in range(len(self.rules)-self.num_classes)])
-    #     # print(consolidated_weights)
-    #
-    #     # effective_rule_indices = np.argsort(consolidated_weights)[::-1]
-    #     effective_rule_indices = np.argsort(weights)[::-1]
-    #     # Adding 1 to the indexes because default is in our self.rules and we always want to keep it, its not considered
-    #     # effective_rule_indices += 1
-    #
-    #     self.effective_rules = []
-    #     for rule_index in effective_rule_indices:
-    #         if abs(weights[rule_index]) > 10e-5:
-    #             self.effective_rules.append(self.rules[rule_index])
-    #     # print(self.effective_rules)
-    #
-    #     # print(f"Indices of rules used: {effective_rule_indices[:len(self.effective_rules)]}")
-    #     # print(f"Before pruning:\n\tRules: {self.n_rules}\nAfter pruning\n\tRules: {len(self.effective_rules)}")
-    #     print(
-    #         f"Before pruning: Rules: {self.n_rules} After pruning Rules: {len(self.effective_rules)}: {weights},,, {list(effective_rule_indices[:len(self.effective_rules)])}")
-
-    # def __getstate__(self):
-    #     self_dict = self.__dict__.copy()
-    #     del self_dict['pool']
-    #     return self_dict

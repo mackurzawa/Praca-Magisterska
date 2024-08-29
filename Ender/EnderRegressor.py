@@ -1,11 +1,14 @@
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics import mean_squared_error
 from RiskMinimizer import AbsoluteErrorRiskMinimizer, GradientEmpiricalRiskMinimizer
 from LossFunction import AbsoluteErrorFunction, SquaredErrorFunction
 from Rule import Rule
 from Cut import Cut
+import matplotlib.pyplot as plt
+import numpy as np
+
+from sklearn.metrics import mean_absolute_error
 
 
 class EnderRegressor(BaseEstimator, RegressorMixin):
@@ -89,16 +92,6 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
             decision = self.nu * self.loss_f.compute_decision(self.covered_instances, self.value_of_f, self.y)
             rule.decision = decision
 
-            # TODO setNumCoveredInstances
-            # idk if its necessary
-            #
-            # num_self.covered_instances = 0
-            # positive = 0
-            # for i in range(len(self.covered_instances)):
-            #     if self.covered_instances[i] >= 0:
-            #         num_self.covered_instances += 1
-            #         if self.
-
             for i_condition in range(len(rule.conditions)):
                 if rule.conditions[i_condition][1] == -99999999999999999:
                     print(f'\t{rule.attribute_names[i_condition]} <= {rule.conditions[i_condition][2]}')
@@ -128,12 +121,11 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
         for cut_direction in [-1, 1]:
             self.empirical_risk_minimizer.initialize_for_cut()
             i = len(self.X) - 1 if cut_direction == GREATER_EQUAL else 0
-            # print(self.inverted_list)
 
             while (cut_direction == GREATER_EQUAL and i >= 0) or (
                     cut_direction != GREATER_EQUAL and attribute < len(self.X)):
                 current_position = self.inverted_list[attribute, i]
-                if self.covered_instances[current_position] > 0:  # TODO is missing attribute
+                if self.covered_instances[current_position] > 0:
                     break
                 i = i - 1 if cut_direction == GREATER_EQUAL else i + 1
 
@@ -145,8 +137,8 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
                     if True:  # TODO ismissing(attribute)
                         count += 1
                         value = self.X[next_position][attribute]
-                        weight = 1  # check what weight, probably initialize self.weight = [1 for _ in self.X]
-                        if current_value != value and count >= 10:  # TODO it was count >= 10
+                        weight = 1
+                        if current_value != value and count >= 10:
                             if temp_empirical_risk < best_cut.empirical_risk - EPSILON:
                                 best_cut.direction = cut_direction
                                 best_cut.value = (current_value + value) / 2
@@ -162,17 +154,13 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
 
     def mark_covered_instances(self, best_attribute, cut):
         for i in range(len(self.X)):
-            if False:  # TODO atribte isMissing() == True
-                pass
-            else:
-                value = self.X[i][best_attribute]
-                # if (value < cut.value) and (cut.direction == 1) or (value > cut.value and cut.direction == -1):
-                if (value < cut.value and cut.direction == 1) or (value > cut.value and cut.direction == -1):
-                    self.covered_instances[i] = -1
+            value = self.X[i][best_attribute]
+            if (value < cut.value and cut.direction == 1) or (value > cut.value and cut.direction == -1):
+                self.covered_instances[i] = -1
 
     def update_value_of_f(self, decision):
         for i in range(len(self.covered_instances)):
-            if self.covered_instances[i] >= 0:  # TODO Changed from == 1 to >= 0
+            if self.covered_instances[i] >= 0:
                 self.value_of_f[i] += decision
 
     def create_inverted_list(self, X):
@@ -196,14 +184,108 @@ class EnderRegressor(BaseEstimator, RegressorMixin):
         return value_of_f_instance
 
     def score(self, X, y):
-        # Upewnij się, że model jest dopasowany
         check_is_fitted(self, 'is_fitted_')
 
-        # Upewnij się, że dane są poprawne
         X, y = check_X_y(X, y)
 
-        # Przykładowa implementacja oceny jakości modelu za pomocą średniego błędu kwadratowego
         predictions = self.predict(X)
         mse = mean_squared_error(y, predictions)
 
-        return -mse  # Zwracamy wartość ujemną, ponieważ metoda score w Scikit-Learn maksymalizuje, a nie minimalizuje
+        return -mse
+
+    def create_history(self, X_train, X_test, y_train, y_test):
+        train_preds = [self.rules[0] for _ in range(len(X_train))]
+        test_preds = [self.rules[0] for _ in range(len(X_test))]
+
+        train_mae = [mean_absolute_error(y_train, train_preds)]
+        test_mae = [mean_absolute_error(y_test, test_preds)]
+        for rule in self.rules[1:]:
+            for i_example, example in enumerate(X_train):
+                train_preds[i_example] += rule.classify_instance(example)
+            train_mae.append(mean_absolute_error(train_preds, y_train))
+            for i_example, example in enumerate(X_test):
+                test_preds[i_example] += rule.classify_instance(example)
+            test_mae.append(mean_absolute_error(test_preds, y_test))
+        return train_mae, test_mae
+
+    def prune_rules(self, X_train, X_test, y_train, y_test):
+        from sklearn.linear_model import lars_path
+        import os
+
+        rule_feature_matrix_train = [[0 if rule.classify_instance(x) == 0 else 1 for rule in self.rules[1:]] for x in
+                                     X_train]
+        rule_feature_matrix_test = [[0 if rule.classify_instance(x) == 0 else 1 for rule in self.rules[1:]] for x in
+                                    X_test]
+
+        lars_show_path = True
+
+        _, _, coefs = lars_path(np.array(rule_feature_matrix_train, dtype=np.float64), np.array(y_train),
+                                method="lasso", eps=1, verbose=True,
+                                # positive=True
+                                )
+
+        print(coefs.T)
+        if lars_show_path:
+            xx = np.sum(np.abs(coefs.T), axis=1)
+            xx /= xx[-1]
+
+            plt.figure(figsize=(10, 7))
+            plt.style.use('ggplot')
+            plt.plot(xx, coefs.T, label=["Feature " + str(i+1) for i in range(len(coefs))])
+            ymin, ymax = plt.ylim()
+            # plt.vlines(xx, ymin, ymax, linestyle="dashed")
+            plt.xlabel("|coef| / max|coef|")
+            plt.ylabel("Coefficients")
+            plt.title(f"LARS Path for Dataset Medical Cost with {self.n_rules} Attributes (Rules)")
+            plt.axis("tight")
+            plt.tight_layout()
+            plt.legend()
+            plt.savefig(
+                os.path.join('Plots',
+                             'pruning',
+                             'Embedded',
+                             f'Lars_path_Model_{self.dataset_name}_{self.n_rules}.png'))
+            plt.show()
+        rule_order = []
+        matrix = coefs.T
+        previous_row = np.zeros(matrix.shape[1])
+
+        # Iterujemy przez każdy wiersz w macierzy
+        for current_row in matrix:
+            # Porównujemy z poprzednim wierszem
+            for idx, (prev, curr) in enumerate(zip(previous_row, current_row)):
+                if prev == 0 and curr != 0:
+                    rule_order.append(idx+1)
+
+            # Aktualizujemy poprzedni wiersz
+            previous_row = current_row
+
+        train_mae = []
+        test_mae = []
+        for c in coefs.T:
+            train_preds = [self.rules[0] for _ in range(len(X_train))]
+            for i_example, example in enumerate(rule_feature_matrix_train):
+                train_preds[i_example] = sum(np.array(example) * np.array(c))/1
+            train_mae.append(mean_absolute_error(y_train, train_preds))
+            test_preds = [self.rules[0] for _ in range(len(X_test))]
+            for i_example, example in enumerate(rule_feature_matrix_test):
+                test_preds[i_example] = sum(np.array(example) * np.array(c))/1
+            test_mae.append(mean_absolute_error(y_test, test_preds))
+        print(train_mae)
+        train_mae_hist, test_mae_hist = self.create_history(X_train, X_test, y_train, y_test)
+        print(train_mae)
+        print(test_mae)
+        print(train_mae_hist)
+        print(test_mae_hist)
+
+        plt.plot(list(range(len(train_mae))), train_mae, c='y')
+        plt.plot(list(range(len(train_mae))), train_mae_hist, c='b')
+        plt.plot(list(range(len(test_mae))), test_mae, c='y', linestyle='dashed')
+        plt.plot(list(range(len(test_mae))), test_mae_hist, c='b', linestyle='dashed')
+        plt.show()
+
+
+        print(rule_order)
+        preds_train = [self.rules[0] for _ in range(len(X_train))]
+        preds_test = [self.rules[0] for _ in range(len(X_test))]
+        return

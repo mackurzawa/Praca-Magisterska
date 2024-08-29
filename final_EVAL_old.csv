@@ -1,2 +1,0 @@
-Model,Dataset,Seed,No_crossvalidation,Time training,Train Accuracy,Train Accuracy Rule Number,Test Accuracy,Test Accuracy Rule Number,Train F1,Train F1 Rule Number,Test F1,Test F1 Rule Number,Number of Rules
-XGBoost,haberman,42,-,0.8693601608276367,0.9787554366008699,,0.6501322051824431,,0.958835927350191,,0.2819477726574501,,

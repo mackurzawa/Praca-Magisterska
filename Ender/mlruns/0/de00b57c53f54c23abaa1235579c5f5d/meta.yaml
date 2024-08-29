@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/de00b57c53f54c23abaa1235579c5f5d/artifacts
+end_time: 1724866512855
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: de00b57c53f54c23abaa1235579c5f5d
+run_name: efficient-mouse-286
+run_uuid: de00b57c53f54c23abaa1235579c5f5d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1724865556335
+status: 3
+tags: []
+user_id: Maciej

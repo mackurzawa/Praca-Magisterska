@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/Maciej/Desktop/Praca%20Magisterska/Ender/mlruns/0/c5efb6a8fe774c9fab51fc9adb093430/artifacts
+end_time: 1724270715393
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: c5efb6a8fe774c9fab51fc9adb093430
+run_name: serious-wolf-185
+run_uuid: c5efb6a8fe774c9fab51fc9adb093430
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1724270650199
+status: 3
+tags: []
+user_id: Maciej
