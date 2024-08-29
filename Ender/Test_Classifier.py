@@ -11,7 +11,6 @@ from EnderClassifier import EnderClassifier
 from PrepareDatasets import prepare_dataset
 from CalculateMetrics import calculate_all_metrics
 from VisualiseHistory import visualise_history
-from multiprocessing import Pool
 
 
 if __name__ == "__main__":
@@ -19,23 +18,21 @@ if __name__ == "__main__":
     n_rules = 100
     use_gradient = True
     # use_gradient = False
-    optimized_searching_for_cut = 0  # Standard
-    optimized_searching_for_cut = 1  # Quicker
-    # optimized_searching_for_cut = 2  # The quickest
+    optimized_searching_for_cut = 0
+    optimized_searching_for_cut = 1
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
-    dataset = 'apple'  # to samo dla 3 searching przy 500 regułach
-    # dataset = 'wine'  # inaczej
+    dataset = 'apple'
+    # dataset = 'wine'
     ##########
-    # dataset = 'haberman' #inaczej
-    # dataset = 'liver'
-    # dataset = 'breast-c' # inaczej
-    # dataset = 'spambase' # inaczej
+    dataset = 'haberman'
+    dataset = 'breast-c'
+    # dataset = 'spambase'
 
     nu = .5
-    # sampling = .5
-    sampling = 1
+    sampling = .5
+    # sampling = 1
 
     params = {
         "Classification": True,
@@ -50,8 +47,6 @@ if __name__ == "__main__":
         mlflow.log_params(params)
 
         X, y = prepare_dataset(dataset)
-        # print(X)
-        # print(y)
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
 
@@ -97,9 +92,9 @@ if __name__ == "__main__":
         mlflow.log_metric("Max Accuracy Test", max(ender.history['accuracy_test']))
 
         pruning_methods = {
-            # 'Filter': None,
-            # 'Wrapper': None,
-            # 'Embedded': None,
+            'Filter': None,
+            'Wrapper': None,
+            'Embedded': None,
             'MyIdeaWrapper': None,
         }
         for pruning_regressor, alpha in pruning_methods.items():
@@ -116,13 +111,5 @@ if __name__ == "__main__":
                 pruning_regressor,
                 f'Accuracy_while_pruning_Model_{dataset}_{n_rules}_nu_{nu}_sampling_{sampling}_use_gradient_{use_gradient}.png'))
 
-            # print("After pruning:", final_metrics)
-            #
-            # print(f"Normal accuracy when using same no. rules: {ender.history['accuracy'][len(ender.effective_rules)]}")
-
         visualise_history(ender)
         mlflow.log_artifact(os.path.join('models', f'model_{dataset}_{n_rules}.pkl'))
-        # # Predicting with specific rules
-        # rules_indices = [0, 1]
-        # my_preds = ender.predict_with_specific_rules(X_train, rules_indices)
-        # print(calculate_all_metrics(y_train, my_preds))

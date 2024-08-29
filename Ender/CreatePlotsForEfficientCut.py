@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-# import seaborn as sns
 import numpy as np
 import os
 
@@ -10,13 +9,10 @@ def create_box_plot(ender, ender_fast, dataset):
     min_val = min(min(ender), min(ender_fast))
     max_val = max(max(ender), max(ender_fast))
 
-    # Ustalenie liczby binów
-    num_bins = 100  # Możesz zmienić na dowolną wartość, aby dostosować rozdzielczość histogramu
+    num_bins = 100
 
-    # Tworzenie wspólnych binów
     bins = np.linspace(min_val, max_val, num_bins + 1)
 
-    # Tworzenie wykresu
     plt.figure(figsize=(8, 6))
     plt.hist(ender, bins=bins, alpha=0.5, label='Baseline Version', edgecolor='black')
     plt.hist(ender_fast, bins=bins, alpha=0.5, label='Efficient Version', edgecolor='black')

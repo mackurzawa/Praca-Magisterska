@@ -19,23 +19,21 @@ if __name__ == "__main__":
     n_rules = 100
     use_gradient = True
     # use_gradient = False
-    optimized_searching_for_cut = 0  # Standard
-    optimized_searching_for_cut = 1  # Quicker
-    # optimized_searching_for_cut = 2  # The quickest
+    optimized_searching_for_cut = 0
+    optimized_searching_for_cut = 1
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
-    dataset = 'apple'  # to samo dla 3 searching przy 500 regułach
-    # dataset = 'wine'  # inaczej
+    dataset = 'apple'
+    # dataset = 'wine'
     ##########
-    # dataset = 'haberman' #inaczej
-    # dataset = 'liver'
-    # dataset = 'breast-c' # inaczej
-    # dataset = 'spambase' # inaczej
+    # dataset = 'haberman'
+    # dataset = 'breast-c'
+    dataset = 'spambase'
 
     nu = .5
-    # sampling = .5
-    sampling = 1
+    sampling = .5
+    # sampling = 1
 
     params = {
         "Classification": True,
@@ -97,10 +95,10 @@ if __name__ == "__main__":
         mlflow.log_metric("Max Accuracy Test", max(ender.history['accuracy_test']))
 
         pruning_methods = {
-            'Filter': None,
+            # 'Filter': None,
             'MyIdeaWrapper': None,
-            'Wrapper': None,
-            'Embedded': None,
+            # 'Wrapper': None,
+            # 'Embedded': None,
         }
         for pruning_regressor, alpha in pruning_methods.items():
             print()
@@ -122,7 +120,3 @@ if __name__ == "__main__":
 
         visualise_history(ender)
         mlflow.log_artifact(os.path.join('models', f'model_{dataset}_{n_rules}.pkl'))
-        # # Predicting with specific rules
-        # rules_indices = [0, 1]
-        # my_preds = ender.predict_with_specific_rules(X_train, rules_indices)
-        # print(calculate_all_metrics(y_train, my_preds))

@@ -1,19 +1,12 @@
-import pickle
 from time import time
-import os
 import random
 
-import mlflow
-from sklearn.model_selection import train_test_split
 
 from sklearn.model_selection import StratifiedKFold
 
 from EnderClassifier import EnderClassifier
 from EnderClassifierFastMyImplementation import EnderClassifierFastMyImplementation
 from PrepareDatasets import prepare_dataset
-from CalculateMetrics import calculate_all_metrics
-from VisualiseHistory import visualise_history
-from multiprocessing import Pool
 
 def test_time(model, RANDOM_STATE):
     times = []
@@ -35,27 +28,23 @@ def test_time(model, RANDOM_STATE):
         accuracies_train.append(model.history['accuracy'][-1])
         accuracies_test.append(model.history['accuracy_test'][-1])
     return times
-    # print(accuracies_train)
-    # print(accuracies_test)
 
 
 if __name__ == "__main__":
     n_rules = 100
     use_gradient = True
     # use_gradient = False
-    optimized_searching_for_cut = 0  # Standard
-    optimized_searching_for_cut = 1  # Quicker
-    # optimized_searching_for_cut = 2  # The quickest
+    optimized_searching_for_cut = 0
+    optimized_searching_for_cut = 1
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
-    # dataset = 'apple'  # to samo dla 3 searching przy 500 regułach
-    # dataset = 'wine'  # inaczej
+    # dataset = 'apple'
+    # dataset = 'wine'
     ##########
-    # dataset = 'haberman' #inaczej
-    # dataset = 'liver'
-    dataset = 'breast-c' # inaczej
-    # dataset = 'spambase' # inaczej
+    # dataset = 'haberman'
+    dataset = 'breast-c'
+    # dataset = 'spambase'
 
     nu = .5
     # sampling = .5
@@ -75,16 +64,6 @@ if __name__ == "__main__":
     times_ender = []
     times_ender_fast = []
     for RANDOM_STATE in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-    # RANDOM_STATE = 0
-    # RANDOM_STATE = 1
-    # RANDOM_STATE = 2
-    # RANDOM_STATE = 3
-    # RANDOM_STATE = 4
-    # RANDOM_STATE = 5
-    # RANDOM_STATE = 6
-    # RANDOM_STATE = 7
-    # RANDOM_STATE = 8
-    # RANDOM_STATE = 9
         ender = EnderClassifier(dataset_name=dataset, n_rules=n_rules, use_gradient=use_gradient,
                                 optimized_searching_for_cut=optimized_searching_for_cut, nu=nu, sampling=sampling,
                                 random_state=RANDOM_STATE, verbose=0)
@@ -102,12 +81,4 @@ if __name__ == "__main__":
         times_ender_fast += time_ender_fast
     print(times_ender)
     print(times_ender_fast)
-    # print("ENDER")
-    # test_time(ender, RANDOM_STATE)
-    # print('='*100)
-    # print("ENDER Fast")
-    # test_time(ender_fast, RANDOM_STATE)
-    # print('='*100)
-
-
 

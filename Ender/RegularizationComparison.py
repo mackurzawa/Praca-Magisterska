@@ -12,7 +12,6 @@ from sklearn.model_selection import train_test_split
 from EnderClassifier import EnderClassifier
 from PrepareDatasets import prepare_dataset
 from CalculateMetrics import calculate_all_metrics
-# from textwrap import wrap
 
 
 if __name__ == "__main__":
@@ -20,19 +19,17 @@ if __name__ == "__main__":
     n_rules = 200
     use_gradient = True
     # use_gradient = False
-    optimized_searching_for_cut = 0  # Standard
-    optimized_searching_for_cut = 1  # Quicker
-    # optimized_searching_for_cut = 2  # The quickest
+    optimized_searching_for_cut = 0
+    optimized_searching_for_cut = 1
     prune = False
     # TRAIN_NEW = False
     TRAIN_NEW = True
-    dataset = 'apple'  # to samo dla 3 searching przy 500 regułach
-    # dataset = 'wine'  # inaczej
+    dataset = 'apple'
+    # dataset = 'wine'
     ##########
-    # dataset = 'haberman' #inaczej
-    # dataset = 'liver'
-    # dataset = 'breast-c' # inaczej
-    # dataset = 'spambase' # inaczej
+    # dataset = 'haberman'
+    # dataset = 'breast-c'
+    # dataset = 'spambase'
 
     nus = [1, .5, .25]
     samplings = [1, .5, .25]

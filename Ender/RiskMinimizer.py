@@ -18,7 +18,6 @@ class AbsoluteErrorRiskMinimizer():
     def compute_current_empirical_risk(self, position, weight):
         self.sum_of_weights += weight * self.gradients[position]
         if self.gradients[position] == 0: self.sum_of_zero_residuals += 1
-        # print(-abs(self.sum_of_weights) + self.sum_of_zero_residuals)
         return -abs(self.sum_of_weights) + self.sum_of_zero_residuals
 
 
